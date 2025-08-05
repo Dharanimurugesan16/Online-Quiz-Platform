@@ -1,0 +1,316 @@
+[
+  {
+    "step": "Read pom.xml to validate backend dependencies",
+    "sub_steps": [
+      "Open /home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/springapp/pom.xml to review dependencies",
+      "Ensure spring-boot-starter-web, spring-boot-starter-data-jpa, spring-boot-starter-validation, mysql-connector, and lombok are declared",
+      "Make note of the dependency versions and any custom configuration required"
+    ],
+    "files_to_add": [],
+    "files_to_edit": [
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/springapp/pom.xml"
+    ],
+    "description": "Validates that all necessary dependencies for backend development are present and helps guide the rest of the backend implementation around existing project setup."
+  },
+  {
+    "step": "Implement JPA Entity Classes and Relationships",
+    "sub_steps": [
+      "Create Quiz, Question, Option, and QuizAttempt entities in com.examly.springapp.model",
+      "Establish correct JPA relationships: OneToMany between Quiz\u2192Question, Question\u2192Option, etc.",
+      "Add validation annotations (jakarta.validation) as specified for all fields",
+      "Implement proper mapping for enums and refer to MySQL-compatible types"
+    ],
+    "files_to_add": [
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/springapp/src/main/java/com/examly/springapp/model/Quiz.java",
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/springapp/src/main/java/com/examly/springapp/model/Question.java",
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/springapp/src/main/java/com/examly/springapp/model/Option.java",
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/springapp/src/main/java/com/examly/springapp/model/QuizAttempt.java"
+    ],
+    "files_to_edit": [],
+    "description": "Defines the data structure, validation, and relationships necessary to persist quizzes, questions, options, and attempts in the MySQL database."
+  },
+  {
+    "step": "Create JPA Repository Interfaces",
+    "sub_steps": [
+      "Create repositories for each entity: QuizRepository, QuestionRepository, OptionRepository, QuizAttemptRepository",
+      "Ensure correct import and use of JpaRepository",
+      "Add query methods as needed for custom lookups (e.g., findByQuizId, etc.)"
+    ],
+    "files_to_add": [
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/springapp/src/main/java/com/examly/springapp/repository/QuizRepository.java",
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/springapp/src/main/java/com/examly/springapp/repository/QuestionRepository.java",
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/springapp/src/main/java/com/examly/springapp/repository/OptionRepository.java",
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/springapp/src/main/java/com/examly/springapp/repository/QuizAttemptRepository.java"
+    ],
+    "files_to_edit": [],
+    "description": "Allows service and controller classes to persist and retrieve entities from the database."
+  },
+  {
+    "step": "Implement DTOs and Validation Error Response Classes",
+    "sub_steps": [
+      "Create DTOs representing quiz creation, question creation, quiz attempt submission, etc. in a dto package",
+      "Create a structured ErrorResponse class to format validation and error messages as specified",
+      "Ensure DTOs are annotated for validation as per requirements"
+    ],
+    "files_to_add": [
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/springapp/src/main/java/com/examly/springapp/dto/QuizDTO.java",
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/springapp/src/main/java/com/examly/springapp/dto/QuestionDTO.java",
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/springapp/src/main/java/com/examly/springapp/dto/OptionDTO.java",
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/springapp/src/main/java/com/examly/springapp/dto/QuizAttemptDTO.java",
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/springapp/src/main/java/com/examly/springapp/dto/AnswerDTO.java",
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/springapp/src/main/java/com/examly/springapp/dto/ErrorResponse.java"
+    ],
+    "files_to_edit": [],
+    "description": "Facilitates API request/response handling and enables structured validation and error reporting per requirements."
+  },
+  {
+    "step": "Implement Service Layer for Business Logic",
+    "sub_steps": [
+      "Create QuizService, QuestionService, QuizAttemptService",
+      "Implement logic for creating quizzes, adding questions with validation rules, submitting quiz attempts and scoring",
+      "Handle cases for not found, validation failures at service layer to be passed to the controller",
+      "Ensure transactional behavior for composite actions (e.g., adding questions with options)"
+    ],
+    "files_to_add": [
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/springapp/src/main/java/com/examly/springapp/service/QuizService.java",
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/springapp/src/main/java/com/examly/springapp/service/QuestionService.java",
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/springapp/src/main/java/com/examly/springapp/service/QuizAttemptService.java"
+    ],
+    "files_to_edit": [],
+    "description": "Encapsulates and centralizes all quiz domain logic, including entity manipulation, validation, and scoring."
+  },
+  {
+    "step": "Implement Controllers and REST API Endpoints",
+    "sub_steps": [
+      "Create QuizController, QuestionController (if separate), QuizAttemptController in com.examly.springapp.controller",
+      "Define all endpoints: quiz creation, fetch all quizzes, get quiz by id, add question, submit quiz attempt, fetch attempts",
+      "Map exception handling to proper HTTP status codes and ErrorResponse format",
+      "Integrate validation using @Valid, and handle resource not found and generic errors",
+      "Return correct response objects per specification"
+    ],
+    "files_to_add": [
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/springapp/src/main/java/com/examly/springapp/controller/QuizController.java",
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/springapp/src/main/java/com/examly/springapp/controller/QuestionController.java",
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/springapp/src/main/java/com/examly/springapp/controller/QuizAttemptController.java"
+    ],
+    "files_to_edit": [],
+    "description": "Exposes the application logic to the frontend and ensures all API contract requirements and error/validation handling are met."
+  },
+  {
+    "step": "Implement Centralized Exception Handling",
+    "sub_steps": [
+      "Create @ControllerAdvice class to catch validation, not found, and generic errors",
+      "Map to HTTP 400, 404, 500 status with correct error structure",
+      "Ensure all exceptions are returned with 'status', 'message', and 'errors' as per the example"
+    ],
+    "files_to_add": [
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/springapp/src/main/java/com/examly/springapp/exception/GlobalExceptionHandler.java"
+    ],
+    "files_to_edit": [],
+    "description": "Guarantees uniform error/validation responses for every endpoint and supports robust frontend error handling."
+  },
+  {
+    "step": "Configure CORS in Spring Boot",
+    "sub_steps": [
+      "Edit main application file or create WebMvcConfigurer to allow requests from http://localhost:3000",
+      "Ensure all endpoints are accessible from React frontend"
+    ],
+    "files_to_add": [
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/springapp/src/main/java/com/examly/springapp/config/CorsConfig.java"
+    ],
+    "files_to_edit": [
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/springapp/src/main/java/com/examly/springapp/QuizManagementSystemApplication.java"
+    ],
+    "description": "Allows the React frontend to interact with the backend APIs during development and testing."
+  },
+  {
+    "step": "Implement All Backend Test Cases Using JUnit",
+    "sub_steps": [
+      "Create test files for controller/service layers in com.examly.springapp",
+      "For 'testCreateQuiz', verify POST /api/quizzes with valid data creates quiz, correct status, response, and persists in DB",
+      "For 'testGetAllQuizzes', verify GET /api/quizzes returns all quizzes, with correct fields",
+      "For 'testAddQuestionToQuiz', test adding valid/invalid questions to quizzes and DB integrity",
+      "For 'testSubmitQuizAttempt', test attempt scoring logic and DB persistence",
+      "For 'testValidationErrors', test error cases for all validation as described, assert error response matches requirements",
+      "Mock repositories/services as needed for isolation and setup"
+    ],
+    "files_to_add": [
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/springapp/src/test/java/com/examly/springapp/controller/QuizControllerTest.java",
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/springapp/src/test/java/com/examly/springapp/controller/QuestionControllerTest.java",
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/springapp/src/test/java/com/examly/springapp/controller/QuizAttemptControllerTest.java"
+    ],
+    "files_to_edit": [],
+    "description": "Implements all backend JUnit test cases from the given Test Cases JSON, providing full coverage for API and validation logic."
+  },
+  {
+    "step": "Compile and Test the Spring Boot Application",
+    "sub_steps": [
+      "Run 'mvn clean compile -q -Dspring.main.banner-mode=off' to compile",
+      "Run 'mvn test -q -Dspring.main.banner-mode=off' to execute all tests, ensuring all pass",
+      "Run 'mvn clean install -q -Dspring.main.banner-mode=off' for install if needed"
+    ],
+    "files_to_add": [],
+    "files_to_edit": [],
+    "description": "Verifies that all backend code compiles with no errors and all JUnit tests pass."
+  },
+  {
+    "step": "Read package.json to validate frontend dependencies",
+    "sub_steps": [
+      "Review /home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/reactapp/package.json for required libraries (react, react-dom, etc.)",
+      "Ensure the build and test:ci scripts exist and check for UI libraries if any",
+      "Reference CSS files and structure in /src and /public"
+    ],
+    "files_to_add": [],
+    "files_to_edit": [
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/reactapp/package.json"
+    ],
+    "description": "Assures the React environment has all necessary dependencies for development and testing before component implementation."
+  },
+  {
+    "step": "Implement React Utility Files (helpers and API constants)",
+    "sub_steps": [
+      "Create /src/utils/constants.js with backend API URL and useful constants",
+      "Create /src/utils/api.js for commonly used fetch/request functions for backend integration"
+    ],
+    "files_to_add": [
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/reactapp/src/utils/constants.js",
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/reactapp/src/utils/api.js"
+    ],
+    "files_to_edit": [],
+    "description": "Centralizes all API URLs and reusable logic for fetching and posting data, reducing code duplication."
+  },
+  {
+    "step": "Create and Style QuizList Component with Tests",
+    "sub_steps": [
+      "Create QuizList.js as a functional component to fetch and display all quizzes (title, description, time limit)",
+      "Apply responsive, modern container with relevant CSS variables and classes",
+      "Allow clicking a quiz to navigate to quiz details/take quiz page",
+      "Create QuizList.test.js to thoroughly test rendering, data fetching, navigation, error/loading states, and empty lists according to test requirements"
+    ],
+    "files_to_add": [
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/reactapp/src/components/QuizList.js",
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/reactapp/src/components/QuizList.test.js"
+    ],
+    "files_to_edit": [
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/reactapp/src/App.js",
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/reactapp/src/App.css"
+    ],
+    "description": "Builds the home page display, meets styling and rendering test cases, integrates navigation, error, and loading handling. Thoroughly tested as per provided spec."
+  },
+  {
+    "step": "Implement QuizForm Component for Quiz Creation with Tests",
+    "sub_steps": [
+      "Create QuizForm.js for quiz creation: title, description, time limit",
+      "Validate all fields according to backend rules, display exact error messages",
+      "Show success on creation, call backend API to save",
+      "Style with form container, labels, and input rules",
+      "Create QuizForm.test.js to cover all form validation and submission behaviors per provided test case"
+    ],
+    "files_to_add": [
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/reactapp/src/components/QuizForm.js",
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/reactapp/src/components/QuizForm.test.js"
+    ],
+    "files_to_edit": [
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/reactapp/src/App.js",
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/reactapp/src/App.css"
+    ],
+    "description": "Provides admin functionality for creating quizzes, complies with test scenarios for validation, and is fully styled per UI specification."
+  },
+  {
+    "step": "Implement QuestionForm Component and Integration with Quiz Management with Tests",
+    "sub_steps": [
+      "Create QuestionForm.js to add questions (multi-choice or true/false) to quizzes",
+      "Support dynamic entry for options, correct answer marking, and relevant validation rules",
+      "Enforce all constraints and error messages for question creation",
+      "Style form per design requirements",
+      "Create QuestionForm.test.js to verify correct behavior for valid/invalid submissions, option handling, and error displays"
+    ],
+    "files_to_add": [
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/reactapp/src/components/QuestionForm.js",
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/reactapp/src/components/QuestionForm.test.js"
+    ],
+    "files_to_edit": [
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/reactapp/src/App.js"
+    ],
+    "description": "Enables administrators to fully configure quizzes, including all validation and behavioral requirements, supported by relevant UI and tests."
+  },
+  {
+    "step": "Implement TakeQuiz Component and QuizDetails with Tests",
+    "sub_steps": [
+      "Create TakeQuiz.js as the main interface for students to take a quiz (input name, display questions, options, navigation, submit)",
+      "Fetch quiz details from backend including time limit, handle transitions, and state",
+      "Enforce validation on user input and question-answering",
+      "Style using responsive containers and design variables",
+      "Create TakeQuiz.test.js covering navigation between questions, loading, answer selection, time, submit logic as per test cases"
+    ],
+    "files_to_add": [
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/reactapp/src/components/TakeQuiz.js",
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/reactapp/src/components/TakeQuiz.test.js"
+    ],
+    "files_to_edit": [
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/reactapp/src/App.js"
+    ],
+    "description": "Implements the student experience for taking quizzes and ensures correctness, navigation, and validation per test requirements."
+  },
+  {
+    "step": "Implement QuizResults Component with Tests",
+    "sub_steps": [
+      "Create QuizResults.js to display student name, title, score, total questions, percentage",
+      "Display success feedback and link/button to return to Home",
+      "Apply correct styles for layout and information display",
+      "Create QuizResults.test.js to verify correctness of result display and navigation behavior"
+    ],
+    "files_to_add": [
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/reactapp/src/components/QuizResults.js",
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/reactapp/src/components/QuizResults.test.js"
+    ],
+    "files_to_edit": [
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/reactapp/src/App.js"
+    ],
+    "description": "Completes quiz workflow by displaying score and summary, passing all result presentation test scenarios."
+  },
+  {
+    "step": "Implement Pages and Integrate All Components",
+    "sub_steps": [
+      "Update App.js to include routing between pages/components: Home (QuizList), Admin (QuizForm, QuestionForm), Quiz (TakeQuiz), Results (QuizResults)",
+      "Create page wrappers or integrate into App.js as needed",
+      "Ensure navigation and data flow between components"
+    ],
+    "files_to_add": [],
+    "files_to_edit": [
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/reactapp/src/App.js"
+    ],
+    "description": "Unifies the user experience, enabling full navigation flow covering all functional and test scenarios."
+  },
+  {
+    "step": "Implement All Frontend Test Cases Using Jest and React Testing Library",
+    "sub_steps": [
+      "In QuizList.test.js: implement 'renderQuizListComponent', 'testLoadingAndErrorStates', mapping each requirement to proper Jest test",
+      "In QuizForm.test.js: implement 'testQuizFormValidation' and check all error messages, positive/negative validation cases",
+      "In TakeQuiz.test.js: implement 'testTakeQuizComponent' to verify all behavior (navigation, selection, submission); use async mocks as needed",
+      "In QuizResults.test.js: implement 'testQuizResultsDisplay', check all outputs including score, percentage, navigation",
+      "Ensure NO MANUAL cleanup() calls, use waitFor and unmount approaches for localStorage and state scenarios, match error and display text EXACTLY to what's expected",
+      "Comprehensive mocking for fetch/axios as needed for API calls"
+    ],
+    "files_to_add": [
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/reactapp/src/components/QuizList.test.js",
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/reactapp/src/components/QuizForm.test.js",
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/reactapp/src/components/TakeQuiz.test.js",
+      "/home/coder/project/workspace/question_generation_service/solutions/285c0d61-b834-4365-ab30-785ce62faa94/reactapp/src/components/QuizResults.test.js"
+    ],
+    "files_to_edit": [],
+    "description": "Implements all frontend Jest/react-testing-library test cases as described, ensuring thorough test-driven validation of UI and interaction."
+  },
+  {
+    "step": "Install, Lint, Build, and Test React Application",
+    "sub_steps": [
+      "Run 'npm install' in reactapp to install dependencies",
+      "Run 'npm run build' to check build errors",
+      "Run 'npx eslint src/ --fix' to lint and auto-fix code style issues",
+      "Run 'npm run test:ci' to execute all tests and ensure they pass"
+    ],
+    "files_to_add": [],
+    "files_to_edit": [],
+    "description": "Final verification of frontend code quality and correctness\u2014ensures the build is production-ready and passes all required tests."
+  }
+]
