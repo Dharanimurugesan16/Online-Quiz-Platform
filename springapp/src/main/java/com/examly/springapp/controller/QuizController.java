@@ -29,8 +29,17 @@ public class QuizController {
         this.quizservice = quizservice;
     }
     @GetMapping
-    public List<Quiz> getQuiz(){
-        return quizservice.getAllQuiz();
+    public List<QuizDTO> getQuiz(){
+        List<Quiz> quizzes =quizservice.getAllQuiz();
+        return quizzes.stream().map(quiz->{
+            QuizDTO dto =new QuizDTO();
+            dto.setId(quiz.getId());
+            dto.setTitle(quiz.getTitle());
+            dto.setDescription(quiz.getDescription());
+            dto.setTimeLimit(quiz.getTimeLimit());
+            dto.setCreatedAt(quiz.getCreatedAt());
+            return dto;
+        }).toList();
     }
     @GetMapping("/{id}")
     public Quiz getQuizbyId(@PathVariable Long id){
