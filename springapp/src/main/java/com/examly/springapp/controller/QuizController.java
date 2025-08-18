@@ -1,74 +1,206 @@
+//package com.examly.springapp.controller;
+//
+//import java.time.LocalDateTime;
+//import java.util.List;
+//
+//import org.springframework.http.HttpStatus;
+//import org.springframework.http.ResponseEntity;
+//import org.springframework.web.bind.annotation.DeleteMapping;
+//import org.springframework.web.bind.annotation.GetMapping;
+//import org.springframework.web.bind.annotation.PathVariable;
+//import org.springframework.web.bind.annotation.PostMapping;
+//import org.springframework.web.bind.annotation.PutMapping;
+//import org.springframework.web.bind.annotation.RequestBody;
+//import org.springframework.web.bind.annotation.RequestMapping;
+//import org.springframework.web.bind.annotation.RestController;
+//
+//import com.examly.springapp.dto.QuizDTO;
+//import com.examly.springapp.model.Quiz;
+//import com.examly.springapp.service.QuizService;
+//
+//import jakarta.validation.Valid;
+//
+//
+//@RestController
+//@RequestMapping("/api/quizzes")
+//public class QuizController {
+//    private final QuizService quizservice;
+//    public QuizController(QuizService quizservice){
+//        this.quizservice = quizservice;
+//    }
+//    @GetMapping
+//    public List<QuizDTO> getQuiz(){
+//        List<Quiz> quizzes =quizservice.getAllQuiz();
+//        return quizzes.stream().map(quiz->{
+//            QuizDTO dto =new QuizDTO();
+//            dto.setId(quiz.getId());
+//            dto.setTitle(quiz.getTitle());
+//            dto.setDescription(quiz.getDescription());
+//            dto.setTimeLimit(quiz.getTimeLimit());
+//            dto.setCreatedAt(quiz.getCreatedAt());
+//            return dto;
+//        }).toList();
+//    }
+//    @GetMapping("/{id}")
+//    public Quiz getQuizbyId(@PathVariable Long id){
+//        return quizservice.getQuizByID(id);
+//    }
+//    @PostMapping
+//    public ResponseEntity<QuizDTO> postQuiz(@Valid @RequestBody QuizDTO quizDTO){
+//        Quiz quiz = Quiz.builder()
+//                    .title(quizDTO.getTitle())
+//                    .description(quizDTO.getDescription())
+//                    .timeLimit(quizDTO.getTimeLimit())
+//                    .createdAt(LocalDateTime.now())
+//                    .build();
+//        Quiz savedQuiz=quizservice.createQuiz(quiz);
+//        QuizDTO responseDTO= new QuizDTO();
+//        responseDTO.setId(savedQuiz.getId());
+//        responseDTO.setTitle(savedQuiz.getTitle());
+//        responseDTO.setDescription(savedQuiz.getDescription());
+//        responseDTO.setTimeLimit(savedQuiz.getTimeLimit());
+//        responseDTO.setCreatedAt(savedQuiz.getCreatedAt());
+//
+//        return ResponseEntity.status(HttpStatus.CREATED).body(responseDTO);
+//    }
+//    @PutMapping("/put/{id}")
+//    public Quiz putQuiz(@PathVariable Long id,@RequestBody Quiz q){
+//        return quizservice.updateQuiz(id, q);
+//    }
+//    @DeleteMapping("/delete/{id}")
+//    public void deleteQuiz(@PathVariable Long id){
+//        quizservice.deleteQuiz(id);
+//    }
+//}
+//package com.examly.springapp.controller;
+//
+//import com.examly.springapp.model.Quiz;
+//import com.examly.springapp.service.QuizService;
+//import org.springframework.web.bind.annotation.*;
+//import java.util.List;
+//import com.examly.springapp.model.Question;
+//import com.examly.springapp.service.QuestionService;
+//import java.util.stream.Collectors;
+//import org.springframework.http.ResponseEntity;
+//
+//
+//
+//@RestController
+//@RequestMapping("/api/quiz")
+//@CrossOrigin(origins = "http://localhost:3000")
+//public class QuizController {
+//
+//    private final QuizService quizService;
+//    private final QuestionService questionService;
+//
+//    public QuizController(QuizService quizService,QuestionService questionService) {
+//
+//        this.quizService = quizService;
+//        this.questionService = questionService;
+//
+//    }
+//
+//    @GetMapping("/all")
+//    public List<Quiz> getAllQuizzes() {
+//        return quizService.getAllQuizzes();
+//    }
+//
+//
+//@PostMapping("/create")
+//public Quiz createQuiz(@RequestBody Quiz quiz) {
+//    List<Question> questionEntities = quiz.getQuestions().stream()
+//            .map(q -> questionService.getQuestionById(q.getId()))
+//            .collect(Collectors.toList());
+//    quiz.setQuestions(questionEntities);
+//    return quizService.createQuiz(quiz);
+//}
+//
+//    @PutMapping("/update/{id}")
+//    public Quiz updateQuiz(@PathVariable Long id, @RequestBody Quiz quiz) {
+//        return quizService.updateQuiz(id, quiz);
+//    }
+//
+//
+//    @DeleteMapping("/delete/{id}")
+//    public ResponseEntity<String> deleteQuiz(@PathVariable Long id) {
+//        if (!quizService.existsById(id)) {
+//            return ResponseEntity.status(404).body("Quiz not found");
+//        }
+//        // Delete assignments first
+//        quizService.deleteUserQuizAssignments(id);
+//        quizService.deleteQuiz(id);
+//        return ResponseEntity.ok("Quiz deleted successfully");
+//    }
+//
+//
+//
+//
+//    @GetMapping("/{id}")
+//    public Quiz getQuizById(@PathVariable Long id) {
+//        return quizService.getQuizById(id);
+//    }
+//
+//
+//
+//}
 package com.examly.springapp.controller;
 
-import java.time.LocalDateTime;
-import java.util.List;
-
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
-import com.examly.springapp.dto.QuizDTO;
 import com.examly.springapp.model.Quiz;
+import com.examly.springapp.model.Question;
 import com.examly.springapp.service.QuizService;
+import com.examly.springapp.service.QuestionService;
 
-import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.http.ResponseEntity;
 
+import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/quizzes")
+@RequestMapping("/api/quiz")
+@CrossOrigin(origins = "http://localhost:3000")
 public class QuizController {
-    private final QuizService quizservice;
-    public QuizController(QuizService quizservice){
-        this.quizservice = quizservice;
-    }
-    @GetMapping
-    public List<QuizDTO> getQuiz(){
-        List<Quiz> quizzes =quizservice.getAllQuiz();
-        return quizzes.stream().map(quiz->{
-            QuizDTO dto =new QuizDTO();
-            dto.setId(quiz.getId());
-            dto.setTitle(quiz.getTitle());
-            dto.setDescription(quiz.getDescription());
-            dto.setTimeLimit(quiz.getTimeLimit());
-            dto.setCreatedAt(quiz.getCreatedAt());
-            return dto;
-        }).toList();
-    }
-    @GetMapping("/{id}")
-    public Quiz getQuizbyId(@PathVariable Long id){
-        return quizservice.getQuizByID(id);
-    }
-    @PostMapping
-    public ResponseEntity<QuizDTO> postQuiz(@Valid @RequestBody QuizDTO quizDTO){
-        Quiz quiz = Quiz.builder()   
-                    .title(quizDTO.getTitle())
-                    .description(quizDTO.getDescription())
-                    .timeLimit(quizDTO.getTimeLimit())
-                    .createdAt(LocalDateTime.now())
-                    .build();
-        Quiz savedQuiz=quizservice.createQuiz(quiz);
-        QuizDTO responseDTO= new QuizDTO();
-        responseDTO.setId(savedQuiz.getId());
-        responseDTO.setTitle(savedQuiz.getTitle());
-        responseDTO.setDescription(savedQuiz.getDescription());
-        responseDTO.setTimeLimit(savedQuiz.getTimeLimit());
-        responseDTO.setCreatedAt(savedQuiz.getCreatedAt());
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(responseDTO);
+    private final QuizService quizService;
+    private final QuestionService questionService;
+
+    public QuizController(QuizService quizService, QuestionService questionService) {
+        this.quizService = quizService;
+        this.questionService = questionService;
     }
-    @PutMapping("/put/{id}")
-    public Quiz putQuiz(@PathVariable Long id,@RequestBody Quiz q){
-        return quizservice.updateQuiz(id, q);
+
+    @GetMapping("/all")
+    public List<Quiz> getAllQuizzes() {
+        return quizService.getAllQuizzes();
     }
+
+    @PostMapping("/create")
+    public Quiz createQuiz(@RequestBody Quiz quiz) {
+        List<Question> questionEntities = quiz.getQuestions().stream()
+                .map(q -> questionService.getQuestionById(q.getId()))
+                .collect(Collectors.toList());
+        quiz.setQuestions(questionEntities);
+        return quizService.createQuiz(quiz);
+    }
+
+    @PutMapping("/update/{id}")
+    public Quiz updateQuiz(@PathVariable Long id, @RequestBody Quiz quiz) {
+        return quizService.updateQuiz(id, quiz);
+    }
+
     @DeleteMapping("/delete/{id}")
-    public void deleteQuiz(@PathVariable Long id){
-        quizservice.deleteQuiz(id);
+    public ResponseEntity<String> deleteQuiz(@PathVariable Long id) {
+        if (!quizService.existsById(id)) {
+            return ResponseEntity.status(404).body("Quiz not found");
+        }
+        // Delete assignments first
+        quizService.deleteUserQuizAssignments(id);
+        quizService.deleteQuiz(id);
+        return ResponseEntity.ok("Quiz deleted successfully");
+    }
+
+    @GetMapping("/{id}")
+    public Quiz getQuizById(@PathVariable Long id) {
+        return quizService.getQuizById(id);
     }
 }
