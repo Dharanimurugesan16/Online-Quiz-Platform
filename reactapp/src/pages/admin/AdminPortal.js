@@ -28,19 +28,13 @@ export default function AdminPortal() {
     questions: [],
   });
 
-//  const [questionForm, setQuestionForm] = useState({
-//    id: null,
-//    text: "",
-//    options: "",
-//    answer: "",
-//  });
-const [questionForm, setQuestionForm] = useState({
-  id: null,
-  text: "",
-  options: "",
-  answer: "",
-  type: "MULTIPLE_CHOICE", // <-- add this
-});
+    const [questionForm, setQuestionForm] = useState({
+      id: null,
+      text: "",
+      options: "",
+      answer: "",
+      type: "MULTIPLE_CHOICE", // <-- add this
+    });
 
 
   const [isEditingQuiz, setIsEditingQuiz] = useState(false);
@@ -139,80 +133,38 @@ const [questionForm, setQuestionForm] = useState({
   const handleQuestionChange = (e) =>
     setQuestionForm({ ...questionForm, [e.target.name]: e.target.value });
 
-//  const handleQuestionSubmit = async (e) => {
-//    e.preventDefault();
-//    try {
-//      if (isEditingQuestion) {
-//        await axiosInstance.put(`/question/update/${questionForm.id}`, questionForm);
-//      } else {
-//        await axiosInstance.post("/question/create", questionForm);
-//      }
-//      setQuestionForm({ id: null, text: "", options: "", answer: "", type: "MULTIPLE_CHOICE" });
-//
-//      setIsEditingQuestion(false);
-//      fetchData();
-//    } catch {
-//      setError("Failed to save question");
-//    }
-//  };
-//const handleQuestionSubmit = async (e) => {
-//  e.preventDefault();
-//  try {
-//    let updatedForm = { ...questionForm };
-//
-//    // If question is True/False → set default options
-//    if (questionForm.type === "TRUE_FALSE") {
-//      updatedForm.options = ["True", "False"];
-//    }
-//
-//    if (isEditingQuestion) {
-//      await axiosInstance.put(`/question/update/${questionForm.id}`, updatedForm);
-//    } else {
-//      await axiosInstance.post("/question/create", updatedForm);
-//
-//    }
-//
-//    // Reset form after submit
-//    setQuestionForm({ id: null, text: "", options: "", answer: "", type: "MULTIPLE_CHOICE" });
-//    setIsEditingQuestion(false);
-//    fetchData();
-//  } catch (err) {
-//    console.error(err);
-//    setError("Failed to save question");
-//  }
-//};
-const handleQuestionSubmit = async (e) => {
-  e.preventDefault();
-  try {
-    let updatedForm = { ...questionForm };
+    const handleQuestionSubmit = async (e) => {
+      e.preventDefault();
+      try {
+        let updatedForm = { ...questionForm };
 
-    // Fix TRUE_FALSE case → backend expects lowercase string
-    if (questionForm.type === "TRUE_FALSE") {
-      updatedForm.options = "true,false";      // ✅ exact string
-      updatedForm.answer = updatedForm.answer.toLowerCase(); // ✅ lowercase
-    }
+        // Fix TRUE_FALSE case → backend expects lowercase string
+        if (questionForm.type === "TRUE_FALSE") {
+          updatedForm.options = "true,false";      // ✅ exact string
+          updatedForm.answer = updatedForm.answer.toLowerCase(); // ✅ lowercase
+        }
 
-    if (isEditingQuestion) {
-      await axiosInstance.put(`/question/update/${questionForm.id}`, updatedForm);
-    } else {
-      await axiosInstance.post("/question/create", updatedForm);
-    }
+        if (isEditingQuestion) {
+          await axiosInstance.put(`/question/update/${questionForm.id}`, updatedForm);
+        } else {
+          await axiosInstance.post("/question/create", updatedForm);
+        }
 
-    // Reset form
-    setQuestionForm({
-      id: null,
-      text: "",
-      options: "",
-      answer: "",
-      type: "MULTIPLE_CHOICE",
-    });
-    setIsEditingQuestion(false);
-    fetchData();
-  } catch (err) {
-    console.error(err);
-    setError("Failed to save question");
-  }
-};
+        // Reset form
+        setQuestionForm({
+          id: null,
+          text: "",
+          options: "",
+          answer: "",
+          type: "MULTIPLE_CHOICE",
+        });
+        setIsEditingQuestion(false);
+        fetchData();
+      } catch (err) {
+        console.error(err);
+        setError("Failed to save question");
+      }
+    };
 
 
   const handleQuestionEdit = (q) => {

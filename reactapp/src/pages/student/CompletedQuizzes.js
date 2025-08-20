@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   CheckCircle,
   Trophy,
@@ -17,120 +17,66 @@ import {
   Medal,
   Zap,
   BookOpen,
-  Brain
+  Brain,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
+
+// Function to get the authenticated user ID from localStorage
+const getCurrentUserId = () => {
+  const userId = localStorage.getItem("userId");
+  console.log("Current userId:", userId); // Debug
+  return userId || null;
+};
 
 export default function CompletedQuizzes() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterBy, setFilterBy] = useState("all");
   const [sortBy, setSortBy] = useState("recent");
+  const [completedQuizzes, setCompletedQuizzes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
-  // Static data for completed quizzes
-  const completedQuizzes = [
-    {
-      id: 1,
-      title: "React Fundamentals",
-      description: "Master the basics of React including components, props, and state management",
-      score: 95,
-      totalQuestions: 20,
-      correctAnswers: 19,
-      timeSpent: 28,
-      timeLimit: 30,
-      completedDate: "2024-08-15",
-      difficulty: "Medium",
-      category: "Frontend",
-      attempts: 1,
-      rank: 1
-    },
-    {
-      id: 2,
-      title: "JavaScript ES6+ Features",
-      description: "Advanced JavaScript concepts including arrow functions, destructuring, and async/await",
-      score: 88,
-      totalQuestions: 25,
-      correctAnswers: 22,
-      timeSpent: 35,
-      timeLimit: 40,
-      completedDate: "2024-08-14",
-      difficulty: "Hard",
-      category: "JavaScript",
-      attempts: 2,
-      rank: 3
-    },
-    {
-      id: 3,
-      title: "CSS Grid & Flexbox",
-      description: "Modern CSS layout techniques for responsive web design",
-      score: 92,
-      totalQuestions: 15,
-      correctAnswers: 14,
-      timeSpent: 18,
-      timeLimit: 25,
-      completedDate: "2024-08-12",
-      difficulty: "Medium",
-      category: "CSS",
-      attempts: 1,
-      rank: 2
-    },
-    {
-      id: 4,
-      title: "Node.js & Express Basics",
-      description: "Server-side JavaScript with Node.js and Express framework fundamentals",
-      score: 78,
-      totalQuestions: 30,
-      correctAnswers: 23,
-      timeSpent: 42,
-      timeLimit: 45,
-      completedDate: "2024-08-10",
-      difficulty: "Hard",
-      category: "Backend",
-      attempts: 1,
-      rank: 8
-    },
-    {
-      id: 5,
-      title: "Database Design Principles",
-      description: "Learn about relational databases, normalization, and SQL basics",
-      score: 85,
-      totalQuestions: 18,
-      correctAnswers: 15,
-      timeSpent: 22,
-      timeLimit: 30,
-      completedDate: "2024-08-08",
-      difficulty: "Medium",
-      category: "Database",
-      attempts: 1,
-      rank: 5
-    },
-    {
-      id: 6,
-      title: "Python Fundamentals",
-      description: "Introduction to Python programming language and basic concepts",
-      score: 100,
-      totalQuestions: 12,
-      correctAnswers: 12,
-      timeSpent: 15,
-      timeLimit: 20,
-      completedDate: "2024-08-06",
-      difficulty: "Easy",
-      category: "Python",
-      attempts: 1,
-      rank: 1
-    }
-  ];
+  useEffect(() => {
+    const fetchCompletedQuizzes = async () => {
+      const userId = getCurrentUserId();
+      if (!userId) {
+        setError("Please log in to view your completed quizzes.");
+        setLoading(false);
+        return;
+      }
 
-  // Calculate statistics
+      try {
+        const response = await axios.get(`http://localhost:8080/api/quiz-attempt/${userId}`);
+        console.log("API Response:", response.data); // Debug
+        setCompletedQuizzes(response.data);
+        setLoading(false);
+      } catch (err) {
+        console.error("Error details:", err.response?.data, err.response?.status, err.message); // Debug
+        if (err.response?.status === 404) {
+          setError("No completed quizzes found for this user.");
+        } else {
+          setError("Failed to load completed quizzes. Please try again.");
+        }
+        setLoading(false);
+      }
+    };
+    fetchCompletedQuizzes();
+  }, []);
+
   const stats = {
     totalCompleted: completedQuizzes.length,
-    averageScore: Math.round(completedQuizzes.reduce((sum, quiz) => sum + quiz.score, 0) / completedQuizzes.length),
-    perfectScores: completedQuizzes.filter(q => q.score === 100).length,
+    averageScore: completedQuizzes.length
+      ? Math.round(completedQuizzes.reduce((sum, quiz) => sum + quiz.score, 0) / completedQuizzes.length)
+      : 0,
+    perfectScores: completedQuizzes.filter((q) => q.score === 100).length,
     totalTimeSpent: completedQuizzes.reduce((sum, quiz) => sum + quiz.timeSpent, 0),
-    bestStreak: 6, // Static value
+    bestStreak: Math.max(...completedQuizzes.map((q) => q.attempts), 0),
     totalQuestions: completedQuizzes.reduce((sum, quiz) => sum + quiz.totalQuestions, 0),
-    correctAnswers: completedQuizzes.reduce((sum, quiz) => sum + quiz.correctAnswers, 0)
+    correctAnswers: completedQuizzes.reduce((sum, quiz) => sum + quiz.correctAnswers, 0),
   };
 
-  // Helper functions
   const getScoreColor = (score) => {
     if (score >= 90) return "text-green-600";
     if (score >= 75) return "text-blue-600";
@@ -139,23 +85,34 @@ export default function CompletedQuizzes() {
   };
 
   const getDifficultyColor = (difficulty) => {
-    switch (difficulty) {
-      case "Easy": return "bg-green-100 text-green-700";
-      case "Medium": return "bg-yellow-100 text-yellow-700";
-      case "Hard": return "bg-red-100 text-red-700";
-      default: return "bg-gray-100 text-gray-700";
+    switch (difficulty.toUpperCase()) {
+      case "EASY":
+        return "bg-green-100 text-green-700";
+      case "MEDIUM":
+        return "bg-yellow-100 text-yellow-700";
+      case "HARD":
+        return "bg-red-100 text-red-700";
+      default:
+        return "bg-gray-100 text-gray-700";
     }
   };
 
   const getCategoryIcon = (category) => {
     switch (category) {
-      case "Frontend": return <BookOpen className="h-4 w-4" />;
-      case "JavaScript": return <Zap className="h-4 w-4" />;
-      case "CSS": return <Target className="h-4 w-4" />;
-      case "Backend": return <Brain className="h-4 w-4" />;
-      case "Database": return <BarChart2 className="h-4 w-4" />;
-      case "Python": return <FileText className="h-4 w-4" />;
-      default: return <BookOpen className="h-4 w-4" />;
+      case "Frontend":
+        return <BookOpen className="h-4 w-4" />;
+      case "JavaScript":
+        return <Zap className="h-4 w-4" />;
+      case "CSS":
+        return <Target className="h-4 w-4" />;
+      case "Backend":
+        return <Brain className="h-4 w-4" />;
+      case "Database":
+        return <BarChart2 className="h-4 w-4" />;
+      case "Python":
+        return <FileText className="h-4 w-4" />;
+      default:
+        return <BookOpen className="h-4 w-4" />;
     }
   };
 
@@ -167,20 +124,92 @@ export default function CompletedQuizzes() {
     return { text: "Pass", color: "bg-gray-100 text-gray-600", icon: <CheckCircle className="h-4 w-4" /> };
   };
 
-  // Filter and sort logic
-  const filteredQuizzes = completedQuizzes.filter(quiz => {
-    const matchesSearch = quiz.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         quiz.category.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = filterBy === "all" ||
-                         (filterBy === "excellent" && quiz.score >= 90) ||
-                         (filterBy === "good" && quiz.score >= 75 && quiz.score < 90) ||
-                         (filterBy === "needs-improvement" && quiz.score < 75);
-    return matchesSearch && matchesFilter;
-  });
+  const filteredQuizzes = completedQuizzes
+    .filter((quiz) => {
+      const matchesSearch =
+        quiz.quizTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        quiz.category.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesFilter =
+        filterBy === "all" ||
+        (filterBy === "excellent" && quiz.score >= 90) ||
+        (filterBy === "good" && quiz.score >= 75 && quiz.score < 90) ||
+        (filterBy === "needs-improvement" && quiz.score < 75);
+      return matchesSearch && matchesFilter;
+    })
+    .sort((a, b) => {
+      if (sortBy === "recent") return new Date(b.completedDate) - new Date(a.completedDate);
+      if (sortBy === "score") return b.score - a.score;
+      return 0;
+    });
+
+  const exportToCSV = () => {
+    const headers = [
+      "Attempt ID",
+      "Quiz Title",
+      "Description",
+      "Score",
+      "Total Questions",
+      "Correct Answers",
+      "Time Spent (min)",
+      "Completed Date",
+      "Difficulty",
+      "Category",
+      "Attempts",
+    ];
+    const rows = filteredQuizzes.map((quiz) => [
+      quiz.attemptId,
+      quiz.quizTitle,
+      quiz.quizDescription,
+      quiz.score,
+      quiz.totalQuestions,
+      quiz.correctAnswers,
+      Math.round(quiz.timeSpent / 60),
+      quiz.completedDate.split("T")[0],
+      quiz.difficulty,
+      quiz.category,
+      quiz.attempts,
+    ]);
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+    ].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "completed_quizzes.csv";
+    link.click();
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 text-lg">Loading completed quizzes...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+        <div className="bg-white p-8 rounded-2xl shadow-lg border border-red-200">
+          <h2 className="text-2xl font-bold text-red-600 mb-4">Error</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={() => navigate("/login")}
+            className="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700"
+          >
+            Go to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-8">
-      {/* Header Section */}
+    <div className="space-y-8 p-6">
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16"></div>
         <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full translate-y-12 -translate-x-12"></div>
@@ -213,7 +242,6 @@ export default function CompletedQuizzes() {
         </div>
       </div>
 
-      {/* Statistics Dashboard */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
           <div className="flex items-center justify-between">
@@ -227,7 +255,7 @@ export default function CompletedQuizzes() {
           </div>
           <div className="mt-4 flex items-center">
             <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
-            <span className="text-sm text-green-600">+2 this week</span>
+            <span className="text-sm text-green-600">+{stats.totalCompleted} this month</span>
           </div>
         </div>
 
@@ -245,13 +273,13 @@ export default function CompletedQuizzes() {
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-600">Accuracy</span>
               <span className="font-medium text-gray-900">
-                {Math.round((stats.correctAnswers / stats.totalQuestions) * 100)}%
+                {stats.totalQuestions ? Math.round((stats.correctAnswers / stats.totalQuestions) * 100) : 0}%
               </span>
             </div>
             <div className="mt-1 w-full bg-gray-200 rounded-full h-2">
               <div
                 className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${(stats.correctAnswers / stats.totalQuestions) * 100}%` }}
+                style={{ width: `${stats.totalQuestions ? (stats.correctAnswers / stats.totalQuestions) * 100 : 0}%` }}
               ></div>
             </div>
           </div>
@@ -261,7 +289,7 @@ export default function CompletedQuizzes() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Time Spent</p>
-              <p className="text-3xl font-bold text-gray-900">{stats.totalTimeSpent}</p>
+              <p className="text-3xl font-bold text-gray-900">{Math.round(stats.totalTimeSpent / 60)}</p>
               <p className="text-sm text-gray-500">minutes</p>
             </div>
             <div className="bg-orange-100 p-3 rounded-full">
@@ -270,7 +298,7 @@ export default function CompletedQuizzes() {
           </div>
           <div className="mt-4">
             <span className="text-sm text-orange-600">
-              Avg: {Math.round(stats.totalTimeSpent / stats.totalCompleted)} min/quiz
+              Avg: {stats.totalCompleted ? Math.round(stats.totalTimeSpent / stats.totalCompleted / 60) : 0} min/quiz
             </span>
           </div>
         </div>
@@ -287,13 +315,12 @@ export default function CompletedQuizzes() {
           </div>
           <div className="mt-4">
             <span className="text-sm text-yellow-600">
-              {Math.round((stats.perfectScores / stats.totalCompleted) * 100)}% success rate
+              {stats.totalCompleted ? Math.round((stats.perfectScores / stats.totalCompleted) * 100) : 0}% success rate
             </span>
           </div>
         </div>
       </div>
 
-      {/* Search and Filter Controls */}
       <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
         <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
           <div className="flex-1 relative">
@@ -322,7 +349,10 @@ export default function CompletedQuizzes() {
               </select>
             </div>
 
-            <button className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-3 rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200">
+            <button
+              onClick={exportToCSV}
+              className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-3 rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200"
+            >
               <Download className="h-5 w-5" />
               <span>Export</span>
             </button>
@@ -330,122 +360,127 @@ export default function CompletedQuizzes() {
         </div>
       </div>
 
-      {/* Quiz Cards */}
       <div className="grid gap-6 sm:grid-cols-1 lg:grid-cols-2">
-        {filteredQuizzes.map((quiz, index) => {
-          const performanceBadge = getPerformanceBadge(quiz.score);
+        {filteredQuizzes.length > 0 ? (
+          filteredQuizzes.map((quiz) => {
+            const performanceBadge = getPerformanceBadge(quiz.score);
 
-          return (
-            <div
-              key={quiz.id}
-              className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-blue-300"
-            >
-              {/* Performance Badge */}
-              <div className="absolute top-4 right-4">
-                <div className={`${performanceBadge.color} px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-1`}>
-                  {performanceBadge.icon}
-                  {performanceBadge.text}
+            return (
+              <div
+                key={quiz.attemptId}
+                className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-blue-300"
+              >
+                <div className="absolute top-4 right-4">
+                  <div className={`${performanceBadge.color} px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-1`}>
+                    {performanceBadge.icon}
+                    {performanceBadge.text}
+                  </div>
                 </div>
-              </div>
 
-              <div className="relative z-10">
-                {/* Quiz Header */}
-                <div className="mb-6">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="bg-blue-100 p-2 rounded-lg">
-                      {getCategoryIcon(quiz.category)}
+                <div className="relative z-10">
+                  <div className="mb-6">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="bg-blue-100 p-2 rounded-lg">
+                        {getCategoryIcon(quiz.category)}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getDifficultyColor(quiz.difficulty)}`}>
+                          {quiz.difficulty}
+                        </span>
+                        <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs font-semibold">
+                          {quiz.category}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getDifficultyColor(quiz.difficulty)}`}>
-                        {quiz.difficulty}
-                      </span>
-                      <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs font-semibold">
-                        {quiz.category}
-                      </span>
+
+                    <h2 className="text-2xl font-bold text-gray-800 mb-2">{quiz.quizTitle}</h2>
+                    <p className="text-gray-600 leading-relaxed text-sm">{quiz.quizDescription}</p>
+                  </div>
+
+                  <div className="mb-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-gray-600 font-medium">Your Score</span>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-3xl font-bold ${getScoreColor(quiz.score)}`}>{quiz.score}%</span>
+                        <div className="bg-green-100 p-2 rounded-full">
+                          <Trophy className="h-5 w-5 text-green-600" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                      <div
+                        className="bg-green-500 h-3 rounded-full transition-all duration-300"
+                        style={{ width: `${quiz.score}%` }}
+                      ></div>
                     </div>
                   </div>
 
-                  <h2 className="text-2xl font-bold text-gray-800 mb-2">{quiz.title}</h2>
-                  <p className="text-gray-600 leading-relaxed text-sm">
-                    {quiz.description}
-                  </p>
-                </div>
+                  <div className="grid grid-cols-2 gap-4 mb-6">
+                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <FileText className="h-5 w-5 text-blue-600" />
+                        <span className="text-blue-700 font-medium text-sm">Questions</span>
+                      </div>
+                      <p className="text-blue-900 font-bold text-lg">{quiz.correctAnswers}/{quiz.totalQuestions}</p>
+                      <p className="text-blue-600 text-xs">Correct answers</p>
+                    </div>
 
-                {/* Score Display */}
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-gray-600 font-medium">Your Score</span>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-3xl font-bold ${getScoreColor(quiz.score)}`}>
-                        {quiz.score}%
-                      </span>
-                      <div className="bg-green-100 p-2 rounded-full">
-                        <Trophy className="h-5 w-5 text-green-600" />
+                    <div className="bg-purple-50 p-4 rounded-xl border border-purple-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Clock className="h-5 w-5 text-purple-600" />
+                        <span className="text-purple-700 font-medium text-sm">Time</span>
+                      </div>
+                      <p className="text-purple-900 font-bold text-lg">{Math.round(quiz.timeSpent / 60)}:{(quiz.timeSpent % 60).toString().padStart(2, "0")}</p>
+                      <p className="text-purple-600 text-xs">Minutes used</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-xl p-4 mb-6">
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-gray-500" />
+                        <span className="text-gray-600">Completed: {quiz.completedDate.split("T")[0]}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Target className="h-4 w-4 text-gray-500" />
+                        <span className="text-gray-600">Attempts: {quiz.attempts}</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Progress Bar */}
-                  <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                    <div
-                      className="bg-green-500 h-3 rounded-full transition-all duration-300"
-                      style={{ width: `${quiz.score}%` }}
-                    ></div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => navigate(`/review/${quiz.attemptId}`)}
+                      className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 px-4 rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 transform hover:scale-105 font-semibold flex items-center justify-center gap-2"
+                    >
+                      <Eye className="h-5 w-5" />
+                      Review Answers
+                    </button>
+                    <button
+                      onClick={() => navigate(`/quiz/${quiz.quizId}`)}
+                      className="bg-gray-100 text-gray-700 py-3 px-4 rounded-xl hover:bg-gray-200 transition-colors duration-200 font-semibold"
+                    >
+                      Retake
+                    </button>
                   </div>
-                </div>
-
-                {/* Quiz Statistics */}
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
-                    <div className="flex items-center gap-2 mb-2">
-                      <FileText className="h-5 w-5 text-blue-600" />
-                      <span className="text-blue-700 font-medium text-sm">Questions</span>
-                    </div>
-                    <p className="text-blue-900 font-bold text-lg">{quiz.correctAnswers}/{quiz.totalQuestions}</p>
-                    <p className="text-blue-600 text-xs">Correct answers</p>
-                  </div>
-
-                  <div className="bg-purple-50 p-4 rounded-xl border border-purple-200">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Clock className="h-5 w-5 text-purple-600" />
-                      <span className="text-purple-700 font-medium text-sm">Time</span>
-                    </div>
-                    <p className="text-purple-900 font-bold text-lg">{quiz.timeSpent}/{quiz.timeLimit}</p>
-                    <p className="text-purple-600 text-xs">Minutes used</p>
-                  </div>
-                </div>
-
-                {/* Additional Details */}
-                <div className="bg-gray-50 rounded-xl p-4 mb-6">
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-gray-500" />
-                      <span className="text-gray-600">Completed: {quiz.completedDate}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Target className="h-4 w-4 text-gray-500" />
-                      <span className="text-gray-600">Attempts: {quiz.attempts}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex gap-3">
-                  <button className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 px-4 rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 transform hover:scale-105 font-semibold flex items-center justify-center gap-2">
-                    <Eye className="h-5 w-5" />
-                    Review Answers
-                  </button>
-                  <button className="bg-gray-100 text-gray-700 py-3 px-4 rounded-xl hover:bg-gray-200 transition-colors duration-200 font-semibold">
-                    Retake
-                  </button>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })
+        ) : (
+          <div className="col-span-2 text-center p-8 bg-white rounded-2xl shadow-lg">
+            <p className="text-gray-600 text-lg">No completed quizzes found. Start taking quizzes to see your progress!</p>
+            <button
+              onClick={() => navigate("/quizzes")}
+              className="mt-4 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700"
+            >
+              Browse Quizzes
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Motivational Footer */}
       <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-lg">
         <div className="text-center">
           <div className="flex justify-center mb-4">
@@ -453,7 +488,7 @@ export default function CompletedQuizzes() {
               <Trophy className="h-8 w-8 text-white" />
             </div>
           </div>
-          <h3 className="text-2xl font-bold text-gray-800 mb-3">Excellent Progress!</h3>
+          <h3 className="text-2xl font-bold text-gray-800 mb-3">Your Progress</h3>
           <p className="text-gray-600 text-lg mb-6 max-w-2xl mx-auto">
             You've completed {stats.totalCompleted} quizzes with an average score of {stats.averageScore}%.
             Keep up the great work and continue challenging yourself!
@@ -465,7 +500,7 @@ export default function CompletedQuizzes() {
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-              <span>{stats.totalTimeSpent} minutes invested</span>
+              <span>{Math.round(stats.totalTimeSpent / 60)} minutes invested</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 bg-purple-500 rounded-full"></div>

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight, Check, Clock, BookOpen, Timer } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
-import ResultPage from "./ResultPage";
 
 export default function QuizPage() {
   const { quizId } = useParams();
@@ -14,6 +13,7 @@ export default function QuizPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [timeRemaining, setTimeRemaining] = useState(null); // Time in seconds
+  const [startTime, setStartTime] = useState(null); // Track quiz start time
 
   useEffect(() => {
     console.log("Quiz ID from useParams:", quizId);
@@ -40,6 +40,7 @@ export default function QuizPage() {
         };
         setQuiz(mappedQuiz);
         setTimeRemaining(mappedQuiz.timeLimit * 60); // Convert minutes to seconds
+        setStartTime(Date.now()); // Record start time
         setLoading(false);
       } catch (err) {
         console.error("Error fetching quiz:", err);
@@ -71,12 +72,11 @@ export default function QuizPage() {
       });
     }, 1000);
 
-    // Cleanup timer on component unmount or submission
     return () => clearInterval(timer);
   }, [timeRemaining, loading, error]);
 
   const handleAnswer = (selected) => {
-    setAnswers({ ...answers, [quiz?.questions[currentQuestion]?.id]: selected });
+    setAnswers({ ...answers, [quiz?.questions[currentQuestion]?.id]: selected?.trim() });
   };
 
   const nextQuestion = () => {
@@ -99,16 +99,49 @@ export default function QuizPage() {
     }
   };
 
-  const submitQuiz = () => {
+  const submitQuiz = async () => {
+    const userId = localStorage.getItem("userId");
+    if (!userId) {
+      setError("Please log in to submit the quiz.");
+      navigate("/login");
+      return;
+    }
+
     const score = quiz.questions.reduce(
-      (total, q) => total + (answers[q.id] === q.correctAnswer ? 1 : 0),
+      (total, q) => total + (answers[q.id]?.trim() === q.correctAnswer?.trim() ? 1 : 0),
       0
     );
-    setTimeRemaining(0); // Stop the timer
-    navigate("/result", { state: { quiz, answers, score } });
+    const timeSpent = Math.round((Date.now() - startTime) / 1000); // Calculate time spent in seconds
+    const attemptData = {
+      quizId: parseInt(quizId),
+      userId, // Use userId from localStorage
+      answers: quiz.questions.reduce((acc, q) => ({
+        ...acc,
+        [q.id]: {
+          selectedAnswer: answers[q.id]?.trim() || null,
+          correctAnswer: q.correctAnswer,
+        },
+      }), {}),
+      score,
+      totalQuestions: quiz.questions.length,
+      timeSpent,
+      completedDate: new Date().toISOString(),
+      difficulty: quiz.difficulty,
+      category: quiz.category,
+      attempts: 1,
+    };
+
+    try {
+      const response = await axios.post("http://localhost:8080/api/quiz-attempt", attemptData);
+      console.log("Quiz attempt saved:", response.data);
+      setTimeRemaining(0); // Stop the timer
+      navigate("/result", { state: { quiz, answers, score, attemptId: response.data.attemptId, timeSpent } });
+    } catch (err) {
+      console.error("Error saving quiz attempt:", err.response?.data, err.response?.status);
+      setError("Failed to save quiz attempt. Please try again.");
+    }
   };
 
-  // Format timeRemaining as MM:SS
   const formatTime = (seconds) => {
     if (seconds === null) return "N/A";
     const minutes = Math.floor(seconds / 60);
@@ -146,7 +179,6 @@ export default function QuizPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-8 px-4">
       <div className="max-w-4xl mx-auto">
-        {/* Header Section */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl mb-4 shadow-lg">
             <BookOpen className="w-8 h-8 text-white" />
@@ -159,7 +191,6 @@ export default function QuizPage() {
           </p>
         </div>
 
-        {/* Progress and Timer Section */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-3">
@@ -181,7 +212,6 @@ export default function QuizPage() {
             </div>
           </div>
 
-          {/* Progress Bar */}
           <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
             <div
               className="h-full bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full transition-all duration-500 ease-out relative"
@@ -192,7 +222,6 @@ export default function QuizPage() {
           </div>
         </div>
 
-        {/* Question Card */}
         <div className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
           <div className="bg-gradient-to-r from-indigo-500 to-purple-600 px-8 py-6">
             <h2 className="text-xl md:text-2xl font-semibold text-white leading-relaxed">
@@ -249,7 +278,6 @@ export default function QuizPage() {
           </div>
         </div>
 
-        {/* Navigation */}
         <div className="flex flex-col sm:flex-row justify-between items-center mt-8 gap-4">
           <button
             onClick={prevQuestion}
@@ -316,7 +344,6 @@ export default function QuizPage() {
           )}
         </div>
 
-        {/* Footer */}
         <div className="text-center mt-12 text-gray-500 text-sm">
           <p>Take your time and choose the best answer for each question.</p>
         </div>
