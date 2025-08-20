@@ -16,10 +16,12 @@ public class QuizAttemptService {
 
     private final QuizAttemptRepository quizAttemptRepository;
     private final QuizRepository quizRepository;
+    private final QuizService quizService; // Add QuizService dependency
 
-    public QuizAttemptService(QuizAttemptRepository quizAttemptRepository, QuizRepository quizRepository) {
+    public QuizAttemptService(QuizAttemptRepository quizAttemptRepository, QuizRepository quizRepository, QuizService quizService) {
         this.quizAttemptRepository = quizAttemptRepository;
         this.quizRepository = quizRepository;
+        this.quizService = quizService;
     }
 
     public QuizAttempt saveQuizAttempt(QuizAttempt quizAttempt) {
@@ -61,11 +63,27 @@ public class QuizAttemptService {
     }
 
     public List<QuizAttempt> getUserQuizAttempts(String userId) {
-        return quizAttemptRepository.findByUserId(userId);
+        List<QuizAttempt> attempts = quizAttemptRepository.findByUserId(userId);
+        System.out.println("Found " + attempts.size() + " attempts for userId: " + userId);
+        // Filter out attempts where the quiz does not exist
+        List<QuizAttempt> filteredAttempts = attempts.stream()
+                .filter(attempt -> {
+                    boolean exists = quizService.existsById(attempt.getQuizId());
+                    System.out.println("Checking quizId: " + attempt.getQuizId() + ", exists: " + exists);
+                    return exists;
+                })
+                .collect(Collectors.toList());
+        System.out.println("Returning " + filteredAttempts.size() + " filtered attempts");
+        return filteredAttempts;
     }
 
     public QuizAttempt getQuizAttemptById(Long attemptId) {
-        return quizAttemptRepository.findById(attemptId)
+        QuizAttempt attempt = quizAttemptRepository.findById(attemptId)
                 .orElseThrow(() -> new RuntimeException("Quiz attempt not found with ID: " + attemptId));
+        // Verify quiz exists
+        if (!quizService.existsById(attempt.getQuizId())) {
+            throw new RuntimeException("Quiz no longer exists for attempt ID: " + attemptId);
+        }
+        return attempt;
     }
 }

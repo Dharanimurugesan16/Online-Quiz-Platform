@@ -49,12 +49,19 @@ public class QuizService {
         return quizRepository.findAll();
     }
 
-    public Quiz getQuizById(Long id) {
-        Quiz quiz = quizRepository.findById(id).orElseThrow(() -> new RuntimeException("Quiz not found"));
-        if (quiz.getDeadline().isBefore(LocalDateTime.now())) {
+    public Quiz getQuizById(Long quizId, boolean bypassDeadline) {
+        System.out.println("Fetching quiz with ID: " + quizId + ", bypassDeadline: " + bypassDeadline);
+        Quiz quiz = quizRepository.findById(quizId)
+                .orElseThrow(() -> new RuntimeException("Quiz not found with ID: " + quizId));
+        if (!bypassDeadline && quiz.getDeadline() != null && quiz.getDeadline().isBefore(LocalDateTime.now())) {
             throw new RuntimeException("Quiz is no longer available due to passed deadline");
         }
+        System.out.println("Quiz found: " + quiz.getTitle());
         return quiz;
+    }
+
+    public Quiz getQuizById(Long quizId) {
+        return getQuizById(quizId, false); // Default: enforce deadline
     }
 
     public boolean existsById(Long id) {
