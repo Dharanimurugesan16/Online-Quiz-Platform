@@ -23,15 +23,25 @@ export default function AdminPortal() {
     title: "",
     description: "",
     timeLimit: 0,
+    difficulty: "EASY",
+    deadline: "",
     questions: [],
   });
 
-  const [questionForm, setQuestionForm] = useState({
-    id: null,
-    text: "",
-    options: "",
-    answer: "",
-  });
+//  const [questionForm, setQuestionForm] = useState({
+//    id: null,
+//    text: "",
+//    options: "",
+//    answer: "",
+//  });
+const [questionForm, setQuestionForm] = useState({
+  id: null,
+  text: "",
+  options: "",
+  answer: "",
+  type: "MULTIPLE_CHOICE", // <-- add this
+});
+
 
   const [isEditingQuiz, setIsEditingQuiz] = useState(false);
   const [isEditingQuestion, setIsEditingQuestion] = useState(false);
@@ -83,13 +93,14 @@ export default function AdminPortal() {
       const payload = {
         ...quizForm,
         questions: quizForm.questions.map((id) => ({ id })),
+        deadline: quizForm.deadline ? new Date(quizForm.deadline).toISOString() : null,
       };
       if (isEditingQuiz) {
         await axiosInstance.put(`/quiz/update/${quizForm.id}`, payload);
       } else {
         await axiosInstance.post("/quiz/create", payload);
       }
-      setQuizForm({ id: null, title: "", description: "", timeLimit: 0, questions: [] });
+      setQuizForm({ id: null, title: "", description: "", timeLimit: 0, difficulty: "EASY", deadline: "", questions: [] });
       setIsEditingQuiz(false);
       fetchData();
     } catch {
@@ -103,6 +114,8 @@ export default function AdminPortal() {
       title: q.title,
       description: q.description,
       timeLimit: q.timeLimit,
+      difficulty: q.difficulty,
+      deadline: q.deadline ? new Date(q.deadline).toISOString().slice(0, 16) : "",
       questions: q.questions.map((qs) => qs.id),
     });
     setIsEditingQuiz(true);
@@ -126,24 +139,84 @@ export default function AdminPortal() {
   const handleQuestionChange = (e) =>
     setQuestionForm({ ...questionForm, [e.target.name]: e.target.value });
 
-  const handleQuestionSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      if (isEditingQuestion) {
-        await axiosInstance.put(`/question/update/${questionForm.id}`, questionForm);
-      } else {
-        await axiosInstance.post("/question/create", questionForm);
-      }
-      setQuestionForm({ id: null, text: "", options: "", answer: "" });
-      setIsEditingQuestion(false);
-      fetchData();
-    } catch {
-      setError("Failed to save question");
+//  const handleQuestionSubmit = async (e) => {
+//    e.preventDefault();
+//    try {
+//      if (isEditingQuestion) {
+//        await axiosInstance.put(`/question/update/${questionForm.id}`, questionForm);
+//      } else {
+//        await axiosInstance.post("/question/create", questionForm);
+//      }
+//      setQuestionForm({ id: null, text: "", options: "", answer: "", type: "MULTIPLE_CHOICE" });
+//
+//      setIsEditingQuestion(false);
+//      fetchData();
+//    } catch {
+//      setError("Failed to save question");
+//    }
+//  };
+//const handleQuestionSubmit = async (e) => {
+//  e.preventDefault();
+//  try {
+//    let updatedForm = { ...questionForm };
+//
+//    // If question is True/False → set default options
+//    if (questionForm.type === "TRUE_FALSE") {
+//      updatedForm.options = ["True", "False"];
+//    }
+//
+//    if (isEditingQuestion) {
+//      await axiosInstance.put(`/question/update/${questionForm.id}`, updatedForm);
+//    } else {
+//      await axiosInstance.post("/question/create", updatedForm);
+//
+//    }
+//
+//    // Reset form after submit
+//    setQuestionForm({ id: null, text: "", options: "", answer: "", type: "MULTIPLE_CHOICE" });
+//    setIsEditingQuestion(false);
+//    fetchData();
+//  } catch (err) {
+//    console.error(err);
+//    setError("Failed to save question");
+//  }
+//};
+const handleQuestionSubmit = async (e) => {
+  e.preventDefault();
+  try {
+    let updatedForm = { ...questionForm };
+
+    // Fix TRUE_FALSE case → backend expects lowercase string
+    if (questionForm.type === "TRUE_FALSE") {
+      updatedForm.options = "true,false";      // ✅ exact string
+      updatedForm.answer = updatedForm.answer.toLowerCase(); // ✅ lowercase
     }
-  };
+
+    if (isEditingQuestion) {
+      await axiosInstance.put(`/question/update/${questionForm.id}`, updatedForm);
+    } else {
+      await axiosInstance.post("/question/create", updatedForm);
+    }
+
+    // Reset form
+    setQuestionForm({
+      id: null,
+      text: "",
+      options: "",
+      answer: "",
+      type: "MULTIPLE_CHOICE",
+    });
+    setIsEditingQuestion(false);
+    fetchData();
+  } catch (err) {
+    console.error(err);
+    setError("Failed to save question");
+  }
+};
+
 
   const handleQuestionEdit = (q) => {
-    setQuestionForm({ id: q.id, text: q.text, options: q.options, answer: q.answer });
+    setQuestionForm({ id: q.id, text: q.text, options: q.options, answer: q.answer, type: q.type || "MULTIPLE_CHOICE" });
     setIsEditingQuestion(true);
   };
 
@@ -342,8 +415,6 @@ export default function AdminPortal() {
         {/* Quizzes Tab */}
         {activeTab === "quizzes" && (
           <div className="space-y-6">
-
-
             <QuizManagement
               quizzes={quizzes}
               questions={questions}

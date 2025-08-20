@@ -18,38 +18,45 @@ import {
 
 export default function AssignedQuizzes() {
   const [quizzes, setQuizzes] = useState([]);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const userId = localStorage.getItem("userId");
     if (userId) fetchAssignedQuizzes(userId);
   }, []);
 
-    const navigate = useNavigate();
+  const navigate = useNavigate();
 
-    const startQuiz = (quizId) => {
-      navigate(`/quiz/${quizId}`);
-    };
+  const startQuiz = async (quizId) => {
+    try {
+      const response = await axios.get(`http://localhost:8080/api/quiz/${quizId}`);
+      if (response.status === 200) {
+        navigate(`/quiz/${quizId}`);
+      }
+    } catch (err) {
+      setError("Quiz is no longer available due to passed deadline");
+    }
+  };
+
   const fetchAssignedQuizzes = async (userId) => {
     try {
       const res = await axios.get(`http://localhost:8080/api/users/${userId}/quizzes`);
       setQuizzes(res.data);
     } catch (err) {
       console.error("Failed to fetch quizzes:", err);
+      setError("Failed to fetch assigned quizzes");
     }
   };
 
-  // Helper function to get difficulty based on question count
-  const getDifficulty = (questionCount) => {
-    if (questionCount <= 5) return { level: "Easy", color: "bg-green-100 text-green-700", icon: "🟢" };
-    if (questionCount <= 10) return { level: "Medium", color: "bg-yellow-100 text-yellow-700", icon: "🟡" };
-    return { level: "Hard", color: "bg-red-100 text-red-700", icon: "🔴" };
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    return new Date(dateString).toLocaleString();
   };
 
-  // Helper function to get time difficulty
-  const getTimeDifficulty = (timeLimit) => {
-    if (timeLimit <= 10) return "Quick";
-    if (timeLimit <= 30) return "Standard";
-    return "Extended";
+  // Helper function to check if quiz deadline has passed
+  const isQuizExpired = (deadline) => {
+    if (!deadline) return false;
+    return new Date(deadline) < new Date();
   };
 
   return (
@@ -87,6 +94,16 @@ export default function AssignedQuizzes() {
           </div>
         </div>
       </div>
+
+      {/* Error Display */}
+      {error && (
+        <div className="mb-6 p-4 bg-gradient-to-r from-red-50 to-red-100 border border-red-200 rounded-xl text-red-700 shadow-sm">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5" />
+            {error}
+          </div>
+        </div>
+      )}
 
       {/* Stats Overview */}
       {quizzes.length > 0 && (
@@ -137,7 +154,9 @@ export default function AssignedQuizzes() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Available</p>
-                <p className="text-2xl font-bold text-gray-900">{quizzes.length}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {quizzes.filter(q => !isQuizExpired(q.deadline)).length}
+                </p>
               </div>
               <div className="bg-orange-100 p-3 rounded-full">
                 <Award className="h-6 w-6 text-orange-600" />
@@ -172,91 +191,106 @@ export default function AssignedQuizzes() {
         </div>
       ) : (
         <div className="grid gap-8 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-          {quizzes.map((q, index) => {
-            const difficulty = getDifficulty(q.questions?.length || 0);
-            const timeDifficulty = getTimeDifficulty(q.timeLimit || 0);
+          {quizzes.map((q, index) => (
+            <div
+              key={q.id}
+              className="group bg-white rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 border border-gray-100 hover:border-blue-200 relative overflow-hidden"
+            >
+              {/* Decorative Background Elements */}
+              <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full -translate-y-12 translate-x-12 group-hover:scale-110 transition-transform duration-500"></div>
+              <div className="absolute bottom-0 left-0 w-16 h-16 bg-gradient-to-tr from-green-100 to-blue-100 rounded-full translate-y-8 -translate-x-8 group-hover:scale-110 transition-transform duration-500"></div>
 
-            return (
-              <div
-                key={q.id}
-                className="group bg-white rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 border border-gray-100 hover:border-blue-200 relative overflow-hidden"
-              >
-                {/* Decorative Background Elements */}
-                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full -translate-y-12 translate-x-12 group-hover:scale-110 transition-transform duration-500"></div>
-                <div className="absolute bottom-0 left-0 w-16 h-16 bg-gradient-to-tr from-green-100 to-blue-100 rounded-full translate-y-8 -translate-x-8 group-hover:scale-110 transition-transform duration-500"></div>
-
-                {/* Quiz Number Badge */}
-                <div className="absolute top-4 right-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold">
-                  {index + 1}
-                </div>
-
-                <div className="relative z-10">
-                  {/* Quiz Header */}
-                  <div className="mb-6">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="bg-gradient-to-r from-blue-500 to-purple-500 p-2 rounded-lg">
-                        <BookOpen className="h-5 w-5 text-white" />
-                      </div>
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${difficulty.color}`}>
-                        {difficulty.icon} {difficulty.level}
-                      </span>
-                    </div>
-
-                    <h2 className="text-2xl font-bold text-gray-800 mb-3 group-hover:text-blue-600 transition-colors duration-300">
-                      {q.title}
-                    </h2>
-                    <p className="text-gray-600 leading-relaxed line-clamp-3">
-                      {q.description || "Test your knowledge with this comprehensive quiz covering key concepts and practical applications."}
-                    </p>
-                  </div>
-
-                  {/* Quiz Stats Grid */}
-                  <div className="grid grid-cols-2 gap-4 mb-6">
-                    <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-xl border border-blue-200">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Clock className="h-5 w-5 text-blue-600" />
-                        <span className="text-blue-700 font-medium text-sm">Duration</span>
-                      </div>
-                      <p className="text-blue-900 font-bold text-lg">{q.timeLimit} min</p>
-                      <p className="text-blue-600 text-xs">{timeDifficulty} time</p>
-                    </div>
-
-                    <div className="bg-gradient-to-r from-purple-50 to-purple-100 p-4 rounded-xl border border-purple-200">
-                      <div className="flex items-center gap-2 mb-2">
-                        <FileText className="h-5 w-5 text-purple-600" />
-                        <span className="text-purple-700 font-medium text-sm">Questions</span>
-                      </div>
-                      <p className="text-purple-900 font-bold text-lg">{q.questions?.length || 0}</p>
-                      <p className="text-purple-600 text-xs">Total items</p>
-                    </div>
-                  </div>
-
-                  {/* Additional Info */}
-                  <div className="bg-gray-50 rounded-xl p-4 mb-6">
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-gray-500" />
-                        <span className="text-gray-600">Available Now</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Target className="h-4 w-4 text-gray-500" />
-                        <span className="text-gray-600">Single Attempt</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Start Quiz Button */}
-                  <button  onClick={() => startQuiz(q.id)} className="group/btn w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white py-4 px-6 rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl font-semibold text-lg relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-700"></div>
-                    <div className="flex items-center justify-center gap-3 relative z-10">
-                      <Play className="h-6 w-6 group-hover/btn:scale-110 transition-transform duration-300" />
-                      <span>Start Quiz</span>
-                    </div>
-                  </button>
-                </div>
+              {/* Quiz Number Badge */}
+              <div className="absolute top-4 right-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold">
+                {index + 1}
               </div>
-            );
-          })}
+
+              <div className="relative z-10">
+                {/* Quiz Header */}
+                <div className="mb-6">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="bg-gradient-to-r from-blue-500 to-purple-500 p-2 rounded-lg">
+                      <BookOpen className="h-5 w-5 text-white" />
+                    </div>
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                      q.difficulty === "EASY" ? "bg-green-100 text-green-700" :
+                      q.difficulty === "MEDIUM" ? "bg-yellow-100 text-yellow-700" :
+                      "bg-red-100 text-red-700"
+                    }`}>
+                      {q.difficulty}
+                    </span>
+                  </div>
+
+                  <h2 className="text-2xl font-bold text-gray-800 mb-3 group-hover:text-blue-600 transition-colors duration-300">
+                    {q.title}
+                  </h2>
+                  <p className="text-gray-600 leading-relaxed line-clamp-3">
+                    {q.description || "Test your knowledge with this comprehensive quiz covering key concepts and practical applications."}
+                  </p>
+                </div>
+
+                {/* Quiz Stats Grid */}
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-xl border border-blue-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Clock className="h-5 w-5 text-blue-600" />
+                      <span className="text-blue-700 font-medium text-sm">Duration</span>
+                    </div>
+                    <p className="text-blue-900 font-bold text-lg">{q.timeLimit} min</p>
+                    <p className="text-blue-600 text-xs">{q.timeLimit <= 10 ? "Quick" : q.timeLimit <= 30 ? "Standard" : "Extended"} time</p>
+                  </div>
+
+                  <div className="bg-gradient-to-r from-purple-50 to-purple-100 p-4 rounded-xl border border-purple-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <FileText className="h-5 w-5 text-purple-600" />
+                      <span className="text-purple-700 font-medium text-sm">Questions</span>
+                    </div>
+                    <p className="text-purple-900 font-bold text-lg">{q.questions?.length || 0}</p>
+                    <p className="text-purple-600 text-xs">Total items</p>
+                  </div>
+                </div>
+
+                {/* Additional Info */}
+                <div className="bg-gray-50 rounded-xl p-4 mb-6">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-gray-500" />
+                      <span className="text-gray-600">Deadline: {formatDate(q.deadline)}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-gray-500" />
+                      <span className="text-gray-600">Created: {formatDate(q.createdAt)}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-gray-500" />
+                      <span className="text-gray-600">Updated: {formatDate(q.updatedAt)}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Target className="h-4 w-4 text-gray-500" />
+                      <span className="text-gray-600">Single Attempt</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Start Quiz Button */}
+                <button
+                  onClick={() => startQuiz(q.id)}
+                  disabled={isQuizExpired(q.deadline)}
+                  className={`group/btn w-full py-4 px-6 rounded-xl font-semibold text-lg relative overflow-hidden transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl ${
+                    isQuizExpired(q.deadline)
+                      ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+                      : "bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600"
+                  }`}
+                >
+                  <div className={`absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-700 ${isQuizExpired(q.deadline) ? "hidden" : ""}`}></div>
+                  <div className="flex items-center justify-center gap-3 relative z-10">
+                    <Play className="h-6 w-6 group-hover/btn:scale-110 transition-transform duration-300" />
+                    <span>{isQuizExpired(q.deadline) ? "Quiz Expired" : "Start Quiz"}</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

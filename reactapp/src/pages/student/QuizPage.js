@@ -1,45 +1,82 @@
-import React, { useState } from "react";
-import { ChevronLeft, ChevronRight, Check, Clock, BookOpen } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { ChevronLeft, ChevronRight, Check, Clock, BookOpen, Timer } from "lucide-react";
+import { useNavigate, useParams } from "react-router-dom";
+import axios from "axios";
 import ResultPage from "./ResultPage";
+
 export default function QuizPage() {
-  const quiz = {
-    title: "Professional Knowledge Assessment",
-    questions: [
-      {
-        id: 1,
-        questionText: "What is the capital city of France?",
-        options: ["Paris", "London", "Berlin", "Rome"],
-        correctAnswer: "Paris"
-      },
-      {
-        id: 2,
-        questionText: "Which planet is the largest in our solar system?",
-        options: ["Earth", "Jupiter", "Mars", "Venus"],
-        correctAnswer: "Jupiter"
-      },
-      {
-        id: 3,
-        questionText: "What programming language is primarily used with React?",
-        options: ["Python", "Java", "JavaScript", "C++"],
-        correctAnswer: "JavaScript"
-      },
-    ],
-  };
-const navigate = useNavigate();
-  const submitQuiz = () => {
-    const score = quiz.questions.reduce(
-      (total, q) => total + (answers[q.id] === q.correctAnswer ? 1 : 0),
-      0
-    );
-    navigate("/result", { state: { quiz, answers, score } });
-  };
+  const { quizId } = useParams();
+  const navigate = useNavigate();
+  const [quiz, setQuiz] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [timeRemaining, setTimeRemaining] = useState(null); // Time in seconds
+
+  useEffect(() => {
+    console.log("Quiz ID from useParams:", quizId);
+    const fetchQuiz = async () => {
+      if (!quizId || isNaN(quizId)) {
+        console.error("Invalid quiz ID detected:", quizId);
+        setError("Invalid quiz ID. Please select a valid quiz from your assigned quizzes.");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        console.log("Fetching quiz with ID:", quizId);
+        const response = await axios.get(`http://localhost:8080/api/quiz/${quizId}`);
+        console.log("Quiz data received:", response.data);
+        const mappedQuiz = {
+          ...response.data,
+          questions: response.data.questions.map((q) => ({
+            id: q.id,
+            questionText: q.text,
+            options: q.options.split(","),
+            correctAnswer: q.answer,
+          })),
+        };
+        setQuiz(mappedQuiz);
+        setTimeRemaining(mappedQuiz.timeLimit * 60); // Convert minutes to seconds
+        setLoading(false);
+      } catch (err) {
+        console.error("Error fetching quiz:", err);
+        if (err.response?.status === 404) {
+          setError("Quiz not found. Please check the quiz ID or contact your instructor.");
+        } else if (err.response?.status === 410) {
+          setError("Quiz is no longer available due to passed deadline.");
+        } else {
+          setError("Failed to load quiz. Please try again or contact your instructor.");
+        }
+        setLoading(false);
+      }
+    };
+    fetchQuiz();
+  }, [quizId]);
+
+  // Timer logic
+  useEffect(() => {
+    if (timeRemaining === null || timeRemaining <= 0 || loading || error) return;
+
+    const timer = setInterval(() => {
+      setTimeRemaining((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          submitQuiz(); // Auto-submit when time is up
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    // Cleanup timer on component unmount or submission
+    return () => clearInterval(timer);
+  }, [timeRemaining, loading, error]);
 
   const handleAnswer = (selected) => {
-    setAnswers({ ...answers, [quiz.questions[currentQuestion].id]: selected });
+    setAnswers({ ...answers, [quiz?.questions[currentQuestion]?.id]: selected });
   };
 
   const nextQuestion = () => {
@@ -62,7 +99,44 @@ const navigate = useNavigate();
     }
   };
 
+  const submitQuiz = () => {
+    const score = quiz.questions.reduce(
+      (total, q) => total + (answers[q.id] === q.correctAnswer ? 1 : 0),
+      0
+    );
+    setTimeRemaining(0); // Stop the timer
+    navigate("/result", { state: { quiz, answers, score } });
+  };
 
+  // Format timeRemaining as MM:SS
+  const formatTime = (seconds) => {
+    if (seconds === null) return "N/A";
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 text-lg">Loading quiz...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+        <div className="bg-white p-8 rounded-2xl shadow-lg border border-red-200">
+          <h2 className="text-2xl font-bold text-red-600 mb-4">Error</h2>
+          <p className="text-gray-600">{error}</p>
+        </div>
+      </div>
+    );
+  }
 
   const question = quiz.questions[currentQuestion];
   const progress = ((currentQuestion + 1) / quiz.questions.length) * 100;
@@ -81,11 +155,11 @@ const navigate = useNavigate();
             {quiz.title}
           </h1>
           <p className="text-gray-600 text-lg">
-            Test your knowledge with our comprehensive assessment
+            {quiz.description || "Test your knowledge with this quiz"}
           </p>
         </div>
 
-        {/* Progress Section */}
+        {/* Progress and Timer Section */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-3">
@@ -94,9 +168,17 @@ const navigate = useNavigate();
                 Question {currentQuestion + 1} of {quiz.questions.length}
               </span>
             </div>
-            <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-              {Math.round(progress)}% Complete
-            </span>
+            <div className="flex items-center space-x-6">
+              <div className="flex items-center space-x-2">
+                <Timer className="w-5 h-5 text-gray-500" />
+                <span className={`text-sm font-medium ${timeRemaining <= 60 ? "text-red-600" : "text-gray-700"}`}>
+                  Time Left: {formatTime(timeRemaining)}
+                </span>
+              </div>
+              <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                {Math.round(progress)}% Complete
+              </span>
+            </div>
           </div>
 
           {/* Progress Bar */}
@@ -134,6 +216,7 @@ const navigate = useNavigate();
                       focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50
                     `}
                     onClick={() => handleAnswer(option)}
+                    disabled={timeRemaining === 0}
                   >
                     <div className="flex items-center justify-between">
                       <span className={`text-lg font-medium transition-colors duration-200 ${
@@ -142,7 +225,6 @@ const navigate = useNavigate();
                         {option}
                       </span>
 
-                      {/* Selection Indicator */}
                       <div className={`
                         w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-200
                         ${isSelected
@@ -156,7 +238,6 @@ const navigate = useNavigate();
                       </div>
                     </div>
 
-                    {/* Subtle gradient overlay on hover */}
                     <div className={`
                       absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300
                       ${!isSelected && 'bg-gradient-to-r from-indigo-50 to-purple-50'}
@@ -172,10 +253,10 @@ const navigate = useNavigate();
         <div className="flex flex-col sm:flex-row justify-between items-center mt-8 gap-4">
           <button
             onClick={prevQuestion}
-            disabled={currentQuestion === 0}
+            disabled={currentQuestion === 0 || timeRemaining === 0}
             className={`
               flex items-center space-x-2 px-6 py-3 rounded-xl font-medium transition-all duration-200
-              ${currentQuestion === 0
+              ${currentQuestion === 0 || timeRemaining === 0
                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                 : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 hover:border-gray-400 hover:shadow-sm'
               }
@@ -205,10 +286,10 @@ const navigate = useNavigate();
           {isLastQuestion ? (
             <button
               onClick={submitQuiz}
-              disabled={!isAnswered}
+              disabled={!isAnswered || timeRemaining === 0}
               className={`
                 flex items-center space-x-2 px-8 py-3 rounded-xl font-semibold transition-all duration-200
-                ${!isAnswered
+                ${!isAnswered || timeRemaining === 0
                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   : 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 hover:shadow-lg transform hover:scale-105 active:scale-100'
                 }
@@ -220,10 +301,10 @@ const navigate = useNavigate();
           ) : (
             <button
               onClick={nextQuestion}
-              disabled={!isAnswered}
+              disabled={!isAnswered || timeRemaining === 0}
               className={`
                 flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold transition-all duration-200
-                ${!isAnswered
+                ${!isAnswered || timeRemaining === 0
                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   : 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:from-indigo-600 hover:to-purple-700 hover:shadow-lg transform hover:scale-105 active:scale-100'
                 }
