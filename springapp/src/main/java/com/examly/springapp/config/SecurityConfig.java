@@ -16,7 +16,6 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
@@ -25,11 +24,10 @@ public class SecurityConfig {
                                 "/api/auth/register",
                                 "/api/auth/login",
                                 "/api/quiz/**",
-                                "/api/question/**"
+                                "/api/users/**"
                         ).permitAll()
                         .anyRequest().permitAll()
-                )
-                .httpBasic(); // Basic auth for now
+                );
         return http.build();
     }
 

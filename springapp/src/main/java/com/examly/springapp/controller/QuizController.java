@@ -1,89 +1,13 @@
 //package com.examly.springapp.controller;
 //
-//import java.time.LocalDateTime;
-//import java.util.List;
-//
-//import org.springframework.http.HttpStatus;
-//import org.springframework.http.ResponseEntity;
-//import org.springframework.web.bind.annotation.DeleteMapping;
-//import org.springframework.web.bind.annotation.GetMapping;
-//import org.springframework.web.bind.annotation.PathVariable;
-//import org.springframework.web.bind.annotation.PostMapping;
-//import org.springframework.web.bind.annotation.PutMapping;
-//import org.springframework.web.bind.annotation.RequestBody;
-//import org.springframework.web.bind.annotation.RequestMapping;
-//import org.springframework.web.bind.annotation.RestController;
-//
-//import com.examly.springapp.dto.QuizDTO;
 //import com.examly.springapp.model.Quiz;
-//import com.examly.springapp.service.QuizService;
-//
-//import jakarta.validation.Valid;
-//
-//
-//@RestController
-//@RequestMapping("/api/quizzes")
-//public class QuizController {
-//    private final QuizService quizservice;
-//    public QuizController(QuizService quizservice){
-//        this.quizservice = quizservice;
-//    }
-//    @GetMapping
-//    public List<QuizDTO> getQuiz(){
-//        List<Quiz> quizzes =quizservice.getAllQuiz();
-//        return quizzes.stream().map(quiz->{
-//            QuizDTO dto =new QuizDTO();
-//            dto.setId(quiz.getId());
-//            dto.setTitle(quiz.getTitle());
-//            dto.setDescription(quiz.getDescription());
-//            dto.setTimeLimit(quiz.getTimeLimit());
-//            dto.setCreatedAt(quiz.getCreatedAt());
-//            return dto;
-//        }).toList();
-//    }
-//    @GetMapping("/{id}")
-//    public Quiz getQuizbyId(@PathVariable Long id){
-//        return quizservice.getQuizByID(id);
-//    }
-//    @PostMapping
-//    public ResponseEntity<QuizDTO> postQuiz(@Valid @RequestBody QuizDTO quizDTO){
-//        Quiz quiz = Quiz.builder()
-//                    .title(quizDTO.getTitle())
-//                    .description(quizDTO.getDescription())
-//                    .timeLimit(quizDTO.getTimeLimit())
-//                    .createdAt(LocalDateTime.now())
-//                    .build();
-//        Quiz savedQuiz=quizservice.createQuiz(quiz);
-//        QuizDTO responseDTO= new QuizDTO();
-//        responseDTO.setId(savedQuiz.getId());
-//        responseDTO.setTitle(savedQuiz.getTitle());
-//        responseDTO.setDescription(savedQuiz.getDescription());
-//        responseDTO.setTimeLimit(savedQuiz.getTimeLimit());
-//        responseDTO.setCreatedAt(savedQuiz.getCreatedAt());
-//
-//        return ResponseEntity.status(HttpStatus.CREATED).body(responseDTO);
-//    }
-//    @PutMapping("/put/{id}")
-//    public Quiz putQuiz(@PathVariable Long id,@RequestBody Quiz q){
-//        return quizservice.updateQuiz(id, q);
-//    }
-//    @DeleteMapping("/delete/{id}")
-//    public void deleteQuiz(@PathVariable Long id){
-//        quizservice.deleteQuiz(id);
-//    }
-//}
-//package com.examly.springapp.controller;
-//
-//import com.examly.springapp.model.Quiz;
-//import com.examly.springapp.service.QuizService;
-//import org.springframework.web.bind.annotation.*;
-//import java.util.List;
 //import com.examly.springapp.model.Question;
+//import com.examly.springapp.service.QuizService;
 //import com.examly.springapp.service.QuestionService;
-//import java.util.stream.Collectors;
+//import org.springframework.web.bind.annotation.*;
 //import org.springframework.http.ResponseEntity;
-//
-//
+//import java.util.List;
+//import java.util.stream.Collectors;
 //
 //@RestController
 //@RequestMapping("/api/quiz")
@@ -93,11 +17,9 @@
 //    private final QuizService quizService;
 //    private final QuestionService questionService;
 //
-//    public QuizController(QuizService quizService,QuestionService questionService) {
-//
+//    public QuizController(QuizService quizService, QuestionService questionService) {
 //        this.quizService = quizService;
 //        this.questionService = questionService;
-//
 //    }
 //
 //    @GetMapping("/all")
@@ -105,43 +27,39 @@
 //        return quizService.getAllQuizzes();
 //    }
 //
-//
-//@PostMapping("/create")
-//public Quiz createQuiz(@RequestBody Quiz quiz) {
-//    List<Question> questionEntities = quiz.getQuestions().stream()
-//            .map(q -> questionService.getQuestionById(q.getId()))
-//            .collect(Collectors.toList());
-//    quiz.setQuestions(questionEntities);
-//    return quizService.createQuiz(quiz);
-//}
+//    @PostMapping("/create")
+//    public Quiz createQuiz(@RequestBody Quiz quiz) {
+//        List<Question> questionEntities = quiz.getQuestions().stream()
+//                .map(q -> questionService.getQuestionById(q.getId()))
+//                .collect(Collectors.toList());
+//        quiz.setQuestions(questionEntities);
+//        return quizService.createQuiz(quiz);
+//    }
 //
 //    @PutMapping("/update/{id}")
 //    public Quiz updateQuiz(@PathVariable Long id, @RequestBody Quiz quiz) {
 //        return quizService.updateQuiz(id, quiz);
 //    }
 //
-//
 //    @DeleteMapping("/delete/{id}")
 //    public ResponseEntity<String> deleteQuiz(@PathVariable Long id) {
 //        if (!quizService.existsById(id)) {
 //            return ResponseEntity.status(404).body("Quiz not found");
 //        }
-//        // Delete assignments first
 //        quizService.deleteUserQuizAssignments(id);
 //        quizService.deleteQuiz(id);
 //        return ResponseEntity.ok("Quiz deleted successfully");
 //    }
 //
-//
-//
-//
 //    @GetMapping("/{id}")
-//    public Quiz getQuizById(@PathVariable Long id) {
-//        return quizService.getQuizById(id);
+//    public ResponseEntity<Quiz> getQuizById(@PathVariable Long id) {
+//        try {
+//            Quiz quiz = quizService.getQuizById(id);
+//            return ResponseEntity.ok(quiz);
+//        } catch (RuntimeException e) {
+//            return ResponseEntity.status(410).body(null); // Gone status for expired quiz
+//        }
 //    }
-//
-//
-//
 //}
 package com.examly.springapp.controller;
 
@@ -149,11 +67,13 @@ import com.examly.springapp.model.Quiz;
 import com.examly.springapp.model.Question;
 import com.examly.springapp.service.QuizService;
 import com.examly.springapp.service.QuestionService;
-
-import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -193,14 +113,38 @@ public class QuizController {
         if (!quizService.existsById(id)) {
             return ResponseEntity.status(404).body("Quiz not found");
         }
-        // Delete assignments first
         quizService.deleteUserQuizAssignments(id);
         quizService.deleteQuiz(id);
         return ResponseEntity.ok("Quiz deleted successfully");
     }
 
     @GetMapping("/{id}")
-    public Quiz getQuizById(@PathVariable Long id) {
-        return quizService.getQuizById(id);
+    public ResponseEntity<Map<String, Object>> getQuizById(@PathVariable Long id) {
+        try {
+            Quiz quiz = quizService.getQuizById(id);
+            if (quiz.getDeadline().isBefore(LocalDateTime.now())) {
+                return ResponseEntity.status(410).body(Map.of("error", "Quiz is no longer available due to passed deadline"));
+            }
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("id", quiz.getId());
+            response.put("title", quiz.getTitle());
+            response.put("description", quiz.getDescription());
+            response.put("timeLimit", quiz.getTimeLimit());
+            response.put("difficulty", quiz.getDifficulty().toString());
+            response.put("category", quiz.getCategory() != null ? quiz.getCategory() : "Unknown");
+            response.put("questions", quiz.getQuestions().stream().map(q -> {
+                Map<String, Object> questionData = new HashMap<>();
+                questionData.put("id", q.getId());
+                questionData.put("text", q.getText()); // Maps to questionText in frontend
+                questionData.put("options", q.getOptions());
+                questionData.put("answer", q.getAnswer()); // Maps to correctAnswer in frontend
+                return questionData;
+            }).collect(Collectors.toList()));
+
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(404).body(Map.of("error", "Quiz not found"));
+        }
     }
 }

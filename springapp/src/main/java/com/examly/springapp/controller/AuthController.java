@@ -1,4 +1,3 @@
-
 package com.examly.springapp.controller;
 
 import com.examly.springapp.dto.LoginRequest;

@@ -17,24 +17,19 @@ public class UserController {
         this.userService = userService;
     }
 
-    // fetch only students
     @GetMapping("/students")
     public List<User> getAllStudents() {
         return userService.getAllStudents();
     }
 
-    // assign quiz to student
     @PostMapping("/assign")
     public String assignQuiz(@RequestParam Long userId, @RequestParam Long quizId) {
         userService.assignQuiz(userId, quizId);
         return "Quiz assigned successfully";
     }
 
-    // get quizzes assigned to a student
     @GetMapping("/{id}/quizzes")
     public List<Quiz> getAssignedQuizzes(@PathVariable Long id) {
         return userService.getAssignedQuizzes(id);
     }
-
-
 }
