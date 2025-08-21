@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { CheckCircle, XCircle, Home, Trophy, Target, Clock, TrendingUp, BookOpen, RotateCcw } from "lucide-react";
+import { CheckCircle, XCircle, Home, Trophy, Target, Clock, TrendingUp, BookOpen } from "lucide-react";
 import axios from "axios";
 
 export default function ReviewPage() {
@@ -26,7 +26,7 @@ export default function ReviewPage() {
     fetchAttempt();
   }, [attemptId]);
 
-  const handleNavigate = (path) => navigate(path);
+  const handleNavigateBack = () => navigate(-1);
 
   if (loading) {
     return (
@@ -47,10 +47,10 @@ export default function ReviewPage() {
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Error</h2>
           <p className="text-gray-600 mb-6">{error || "Quiz attempt not found."}</p>
           <button
-            onClick={() => handleNavigate("/student/completed-quizzes")}
+            onClick={handleNavigateBack}
             className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
           >
-            Back to Completed Quizzes
+            Back to Previous Page
           </button>
         </div>
       </div>
@@ -226,19 +226,11 @@ export default function ReviewPage() {
 
         <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
           <button
-            onClick={() => handleNavigate("/student/completed-quizzes")}
+            onClick={handleNavigateBack}
             className="flex items-center space-x-2 px-8 py-4 bg-gradient-to-r from-purple-500 via-violet-500 to-fuchsia-500 text-white rounded-xl font-semibold hover:from-purple-600 hover:via-violet-600 hover:to-fuchsia-600 transform hover:scale-105 transition-all duration-200 shadow-lg"
           >
             <Home className="w-5 h-5" />
-            <span>Back to Completed Quizzes</span>
-          </button>
-
-          <button
-            onClick={() => handleNavigate(`/quiz/${attempt.quizId || ''}`)}
-            className="flex items-center space-x-2 px-8 py-4 bg-white text-gray-700 border-2 border-gray-300 rounded-xl font-semibold hover:bg-gray-50 hover:border-gray-400 transform hover:scale-105 transition-all duration-200"
-          >
-            <RotateCcw className="w-5 h-5" />
-            <span>Retake Quiz</span>
+            <span>Go to Dashboard</span>
           </button>
         </div>
 

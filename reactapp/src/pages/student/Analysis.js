@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   BarChart2,
   TrendingUp,
@@ -7,44 +7,328 @@ import {
   Star,
   CheckCircle,
   Trophy,
-  PieChart,
+  PieChart as PieChartIcon,
   Filter,
   Download
 } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer as ResponsiveContainerPie, Tooltip as PieTooltip, Legend as PieLegend } from 'recharts';
+
+// Colors for pie chart
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82ca9d'];
+
+// Configure the API base URL
+const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
+
+// Helper function to log unknown values
+const logUnknownValues = (attempts) => {
+  console.log("=== ANALYZING QUIZ ATTEMPTS FOR UNKNOWN VALUES ===");
+
+  if (!attempts || !Array.isArray(attempts)) {
+    console.log("No attempts data or invalid format");
+    return;
+  }
+
+  // Check for unknown values in each attempt
+  attempts.forEach((attempt, index) => {
+    console.log(`--- Attempt ${index + 1} ---`);
+
+    const unknownFields = [];
+
+    if (attempt.category === "Unknown" || !attempt.category) unknownFields.push('category');
+    if (attempt.difficulty === "UNKNOWN" || !attempt.difficulty) unknownFields.push('difficulty');
+    if (!attempt.quizTitle || attempt.quizTitle === "Unknown Quiz") unknownFields.push('quizTitle');
+
+    if (unknownFields.length > 0) {
+      console.log(`Fields with unknown values: ${unknownFields.join(', ')}`);
+      console.log('Attempt object:', attempt);
+    } else {
+      console.log('No unknown values found');
+    }
+  });
+
+  // Count how many attempts have unknown categories
+  const unknownCategoryCount = attempts.filter(attempt =>
+    attempt.category === "Unknown" || !attempt.category
+  ).length;
+
+  console.log(`Attempts with unknown category: ${unknownCategoryCount}/${attempts.length}`);
+
+  console.log("=== END ANALYSIS ===");
+};
+
+// Helper function to process quiz attempts into performanceData structure
+const processQuizAttempts = (attempts) => {
+  // Log unknown values for debugging
+  logUnknownValues(attempts);
+
+  // Handle empty or invalid attempts
+  if (!attempts || !Array.isArray(attempts) || attempts.length === 0) {
+    console.log("No quiz attempts found or invalid data format");
+    return {
+      totalQuizzes: 0,
+      averageScore: 0,
+      totalTimeSpent: 0,
+      perfectScores: 0,
+      improvement: 0,
+      scoreTrend: [],
+      categoryPerformance: [],
+      categoryPieData: [],
+      questionAccuracy: [],
+    };
+  }
+
+  // Filter out invalid attempts
+  const validAttempts = attempts.filter(attempt =>
+    attempt && typeof attempt.score === 'number' && attempt.score >= 0
+  );
+
+  if (validAttempts.length === 0) {
+    console.log("No valid quiz attempts found after filtering");
+    return {
+      totalQuizzes: 0,
+      averageScore: 0,
+      totalTimeSpent: 0,
+      perfectScores: 0,
+      improvement: 0,
+      scoreTrend: [],
+      categoryPerformance: [],
+      categoryPieData: [],
+      questionAccuracy: [],
+    };
+  }
+
+  console.log(`Processing ${validAttempts.length} valid quiz attempts`);
+
+  // Calculate total quizzes
+  const totalQuizzes = validAttempts.length;
+
+  // Calculate average score
+  const totalScore = validAttempts.reduce((sum, attempt) => sum + attempt.score, 0);
+  const averageScore = Math.round(totalScore / totalQuizzes);
+
+  // Calculate total time spent
+  const totalTimeSpent = Math.round(validAttempts.reduce((sum, attempt) =>
+    sum + ((attempt.timeSpent || 0) / 60), 0));
+
+  // Calculate perfect scores (score === 100)
+  const perfectScores = validAttempts.filter((attempt) => attempt.score === 100).length;
+
+  // Calculate improvement (current month vs previous month)
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+
+  const currentMonthAttempts = validAttempts.filter((attempt) => {
+    if (!attempt.completedDate) {
+      console.log("Attempt missing completedDate:", attempt);
+      return false;
+    }
+    const date = new Date(attempt.completedDate);
+    return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+  });
+
+  const previousMonthAttempts = validAttempts.filter((attempt) => {
+    if (!attempt.completedDate) return false;
+    const date = new Date(attempt.completedDate);
+    const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+    const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+    return date.getMonth() === prevMonth && date.getFullYear() === prevYear;
+  });
+
+  console.log(`Current month attempts: ${currentMonthAttempts.length}, Previous month attempts: ${previousMonthAttempts.length}`);
+
+  const currentMonthAvg = currentMonthAttempts.length > 0
+    ? currentMonthAttempts.reduce((sum, attempt) => sum + attempt.score, 0) / currentMonthAttempts.length
+    : 0;
+
+  const previousMonthAvg = previousMonthAttempts.length > 0
+    ? previousMonthAttempts.reduce((sum, attempt) => sum + attempt.score, 0) / previousMonthAttempts.length
+    : 0;
+
+  const improvement = previousMonthAvg > 0
+    ? Math.round(((currentMonthAvg - previousMonthAvg) / previousMonthAvg) * 100)
+    : currentMonthAvg > 0 ? 100 : 0;
+
+  // Map to scoreTrend
+  const scoreTrend = validAttempts
+    .map((attempt) => {
+      const attemptDate = attempt.completedDate
+        ? attempt.completedDate.split('T')[0]
+        : new Date().toISOString().split('T')[0];
+
+      return {
+        id: attempt.attemptId || `unknown-${Math.random().toString(36).substr(2, 9)}`,
+        title: attempt.quizTitle || "Unnamed Quiz",
+        score: attempt.score,
+        date: attemptDate,
+      };
+    })
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  // Group by category for categoryPerformance - use quiz title if category is unknown
+  const categoryGroups = validAttempts.reduce((acc, attempt) => {
+    let category = attempt.category;
+
+    // If category is unknown, try to use quiz title or default to "General"
+    if (category === "Unknown" || !category) {
+      category = attempt.quizTitle || "General Knowledge";
+    }
+
+    if (!acc[category]) {
+      acc[category] = { scores: [], completed: 0, total: 0 };
+    }
+    acc[category].scores.push(attempt.score);
+    acc[category].completed += 1;
+    acc[category].total += 1;
+    return acc;
+  }, {});
+
+  console.log("Category groups:", categoryGroups);
+
+  const categoryPerformance = Object.keys(categoryGroups).map((category) => ({
+    category,
+    averageScore: Math.round(
+      categoryGroups[category].scores.reduce((sum, score) => sum + score, 0) /
+      categoryGroups[category].scores.length
+    ),
+    completed: categoryGroups[category].completed,
+    total: categoryGroups[category].total,
+  }));
+
+  // Prepare data for pie chart
+  const categoryPieData = categoryPerformance.map((cat) => ({
+    name: cat.category,
+    value: cat.averageScore,
+  }));
+
+  // Group by difficulty and category for questionAccuracy
+  const difficultyGroups = validAttempts.reduce((acc, attempt) => {
+    const difficulty = attempt.difficulty || "MIXED";
+    if (!acc[difficulty]) {
+      acc[difficulty] = { correct: 0, total: 0 };
+    }
+    acc[difficulty].correct += attempt.correctAnswers || 0;
+    acc[difficulty].total += attempt.totalQuestions || 0;
+    return acc;
+  }, {});
+
+  const categoryAccuracyGroups = validAttempts.reduce((acc, attempt) => {
+    let category = attempt.category;
+
+    // If category is unknown, try to use quiz title or default to "General"
+    if (category === "Unknown" || !category) {
+      category = attempt.quizTitle || "General Knowledge";
+    }
+
+    if (!acc[category]) {
+      acc[category] = { correct: 0, total: 0 };
+    }
+    acc[category].correct += attempt.correctAnswers || 0;
+    acc[category].total += attempt.totalQuestions || 0;
+    return acc;
+  }, {});
+
+  const questionAccuracy = [
+    ...Object.keys(difficultyGroups).map((difficulty) => ({
+      difficulty,
+      correct: difficultyGroups[difficulty].correct,
+      total: difficultyGroups[difficulty].total,
+    })),
+    ...Object.keys(categoryAccuracyGroups).map((category) => ({
+      category,
+      correct: categoryAccuracyGroups[category].correct,
+      total: categoryAccuracyGroups[category].total,
+    })),
+  ];
+
+  console.log("Processed performance data:", {
+    totalQuizzes,
+    averageScore,
+    totalTimeSpent,
+    perfectScores,
+    improvement,
+    scoreTrendCount: scoreTrend.length,
+    categoryPerformance,
+    categoryPieData,
+    questionAccuracy,
+  });
+
+  return {
+    totalQuizzes,
+    averageScore,
+    totalTimeSpent,
+    perfectScores,
+    improvement,
+    scoreTrend,
+    categoryPerformance,
+    categoryPieData,
+    questionAccuracy,
+  };
+};
 
 export default function Analysis() {
-  // Static data for analysis
-  const performanceData = {
-    totalQuizzes: 18,
-    averageScore: 87,
-    totalTimeSpent: 420, // minutes
-    perfectScores: 3,
-    improvement: 5, // percentage improvement from last month
-    scoreTrend: [
-      { id: 1, title: "Python Fundamentals", score: 100, date: "2024-08-06" },
-      { id: 2, title: "Database Design", score: 85, date: "2024-08-08" },
-      { id: 3, title: "Node.js Basics", score: 78, date: "2024-08-10" },
-      { id: 4, title: "CSS Grid & Flexbox", score: 92, date: "2024-08-12" },
-      { id: 5, title: "JavaScript ES6+", score: 88, date: "2024-08-14" },
-      { id: 6, title: "React Fundamentals", score: 95, date: "2024-08-15" }
-    ],
-    categoryPerformance: [
-      { category: "Frontend", averageScore: 90, completed: 5, total: 6 },
-      { category: "JavaScript", averageScore: 85, completed: 4, total: 5 },
-      { category: "CSS", averageScore: 88, completed: 3, total: 3 },
-      { category: "Backend", averageScore: 80, completed: 2, total: 3 },
-      { category: "Database", averageScore: 82, completed: 2, total: 3 },
-      { category: "Python", averageScore: 95, completed: 2, total: 2 }
-    ],
-    questionAccuracy: [
-      { difficulty: "Easy", correct: 45, total: 50, category: "Python" },
-      { difficulty: "Medium", correct: 60, total: 75, category: "Frontend" },
-      { difficulty: "Hard", correct: 30, total: 50, category: "JavaScript" },
-      { category: "CSS", correct: 25, total: 30 },
-      { category: "Backend", correct: 20, total: 30 },
-      { category: "Database", correct: 15, total: 20 }
-    ]
-  };
+  // State for performance data, loading, and error
+  const [performanceData, setPerformanceData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [rawData, setRawData] = useState(null);
+
+  // Fetch data from backend on component mount
+  useEffect(() => {
+    const fetchPerformanceData = async () => {
+      const userId = localStorage.getItem("userId");
+      if (!userId) {
+        setError("Please log in to view your performance");
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        const response = await fetch(`${API_BASE_URL}/api/quiz-attempt/${userId}`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        console.log("Response Status:", response.status);
+        console.log("Response Headers:", [...response.headers.entries()]);
+
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(`HTTP error! Status: ${response.status}, Response: ${text}`);
+        }
+
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          const text = await response.text();
+          throw new Error(`Expected JSON, but received: ${text.substring(0, 100)}...`);
+        }
+
+        const data = await response.json();
+        setRawData(data); // Store raw data for debugging
+
+        console.log("Raw API response data:", data);
+
+        if (data.length > 0 && data[0].error) {
+          throw new Error(data[0].error);
+        }
+
+        // Process the quiz attempts into performanceData structure
+        const processedData = processQuizAttempts(data);
+        setPerformanceData(processedData);
+      } catch (err) {
+        console.error("Fetch Error:", err);
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPerformanceData();
+  }, []);
 
   // Helper functions
   const getScoreColor = (score) => {
@@ -56,15 +340,80 @@ export default function Analysis() {
 
   const getDifficultyColor = (difficulty) => {
     switch (difficulty) {
-      case "Easy": return "bg-green-100 text-green-700";
-      case "Medium": return "bg-yellow-100 text-yellow-700";
-      case "Hard": return "bg-red-100 text-red-700";
+      case "EASY": return "bg-green-100 text-green-700";
+      case "MEDIUM": return "bg-yellow-100 text-yellow-700";
+      case "HARD": return "bg-red-100 text-red-700";
+      case "MIXED": return "bg-purple-100 text-purple-700";
       default: return "bg-gray-100 text-gray-700";
     }
   };
 
+  // Debug button to show raw data
+  const showRawData = () => {
+    console.log("Raw API data:", rawData);
+    alert("Raw data logged to console. Check the browser developer tools.");
+  };
+
+  // Render loading or error states
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="text-red-600 text-lg">
+          Error: {error}
+          <br />
+          <button
+            className="mt-4 bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
+            onClick={() => window.location.reload()}
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Handle empty quiz attempts
+  if (!performanceData.totalQuizzes) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="text-gray-600 text-lg">No quiz attempts found. Start a quiz to see your performance!</div>
+        <button
+          className="mt-4 ml-4 bg-gray-600 text-white py-2 px-4 rounded hover:bg-gray-700"
+          onClick={showRawData}
+        >
+          Debug: Show Raw Data
+        </button>
+      </div>
+    );
+  }
+
+  // Calculate total accuracy for the progress bar
+  const totalCorrect = performanceData.questionAccuracy.reduce((sum, q) => sum + q.correct, 0);
+  const totalQuestions = performanceData.questionAccuracy.reduce((sum, q) => sum + q.total, 0);
+  const totalAccuracy = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
+
+  // Render the component with fetched data
   return (
     <div className="space-y-8">
+      {/* Debug button */}
+      <div className="fixed bottom-4 right-4 z-50">
+        <button
+          className="bg-gray-800 text-white py-2 px-4 rounded-lg shadow-lg hover:bg-gray-700 text-sm"
+          onClick={showRawData}
+          title="View raw API data in console"
+        >
+          Debug Data
+        </button>
+      </div>
+
       {/* Header Section */}
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16"></div>
@@ -112,7 +461,7 @@ export default function Analysis() {
           </div>
           <div className="mt-4 flex items-center">
             <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
-            <span className="text-sm text-green-600">+3 this month</span>
+            <span className="text-sm text-green-600">+{performanceData.improvement}% this month</span>
           </div>
         </div>
 
@@ -129,22 +478,12 @@ export default function Analysis() {
           <div className="mt-4">
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-600">Accuracy</span>
-              <span className="font-medium text-gray-900">
-                {Math.round(
-                  (performanceData.questionAccuracy.reduce((sum, q) => sum + q.correct, 0) /
-                    performanceData.questionAccuracy.reduce((sum, q) => sum + q.total, 0)) * 100
-                )}%
-              </span>
+              <span className="font-medium text-gray-900">{totalAccuracy}%</span>
             </div>
             <div className="mt-1 w-full bg-gray-200 rounded-full h-2">
               <div
                 className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                style={{
-                  width: `${
-                    (performanceData.questionAccuracy.reduce((sum, q) => sum + q.correct, 0) /
-                      performanceData.questionAccuracy.reduce((sum, q) => sum + q.total, 0)) * 100
-                  }%`
-                }}
+                style={{ width: `${totalAccuracy}%` }}
               ></div>
             </div>
           </div>
@@ -163,7 +502,7 @@ export default function Analysis() {
           </div>
           <div className="mt-4">
             <span className="text-sm text-orange-600">
-              Avg: {Math.round(performanceData.totalTimeSpent / performanceData.totalQuizzes)} min/quiz
+              Avg: {Math.round(performanceData.totalTimeSpent / (performanceData.totalQuizzes || 1))} min/quiz
             </span>
           </div>
         </div>
@@ -180,38 +519,38 @@ export default function Analysis() {
           </div>
           <div className="mt-4">
             <span className="text-sm text-yellow-600">
-              {Math.round((performanceData.perfectScores / performanceData.totalQuizzes) * 100)}% success rate
+              {Math.round((performanceData.perfectScores / (performanceData.totalQuizzes || 1)) * 100)}% success rate
             </span>
           </div>
         </div>
       </div>
 
-      {/* Score Trend Chart */}
+      {/* Score Trend Bar Chart using Recharts */}
       <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-900">Score Trend</h2>
           <button className="text-blue-600 hover:text-blue-700 font-medium text-sm">View Details</button>
         </div>
-        <div className="flex items-end h-64 space-x-4">
-          {performanceData.scoreTrend.map((quiz, index) => (
-            <div key={quiz.id} className="flex-1 flex flex-col items-center">
-              <div
-                className={`bg-green-500 rounded-t-lg transition-all duration-300`}
-                style={{ height: `${quiz.score}%`, width: "100%" }}
-              ></div>
-              <p className="text-xs text-gray-600 mt-2 text-center">{quiz.date}</p>
-              <p className={`text-sm font-semibold ${getScoreColor(quiz.score)}`}>{quiz.score}%</p>
-            </div>
-          ))}
+        <div style={{ height: '300px' }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={performanceData.scoreTrend}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="score" fill="#82ca9d" />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
         <div className="mt-4 border-t border-gray-200 pt-4">
           <p className="text-gray-600 text-sm">
-            Your scores have improved by {performanceData.improvement}% over the last month.
+            Your scores have {performanceData.improvement >= 0 ? 'improved' : 'decreased'} by {Math.abs(performanceData.improvement)}% over the last month.
           </p>
         </div>
       </div>
 
-      {/* Category Performance */}
+      {/* Category Performance with Pie Chart */}
       <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-900">Category Performance</h2>
@@ -229,36 +568,82 @@ export default function Analysis() {
             </select>
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {performanceData.categoryPerformance.map((cat) => (
-            <div
-              key={cat.category}
-              className="p-4 border border-gray-200 rounded-xl hover:shadow-md transition-shadow duration-200"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-gray-900">{cat.category}</h3>
-                <div className="bg-blue-100 p-2 rounded-full">
-                  <Target className="h-5 w-5 text-blue-600" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* List View */}
+          <div className="space-y-4">
+            {performanceData.categoryPerformance.length > 0 ? (
+              performanceData.categoryPerformance.map((cat) => (
+                <div
+                  key={cat.category}
+                  className="p-4 border border-gray-200 rounded-xl hover:shadow-md transition-shadow duration-200"
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold text-gray-900">{cat.category}</h3>
+                    <div className="bg-blue-100 p-2 rounded-full">
+                      <Target className="h-5 w-5 text-blue-600" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600">Average Score</span>
+                      <span className={`font-medium ${getScoreColor(cat.averageScore)}`}>{cat.averageScore}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${cat.averageScore}%` }}
+                      ></div>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600">Completion</span>
+                      <span className="font-medium text-gray-900">{cat.completed}/{cat.total}</span>
+                    </div>
+                  </div>
                 </div>
+              ))
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <Target className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p>No category data available</p>
               </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600">Average Score</span>
-                  <span className={`font-medium ${getScoreColor(cat.averageScore)}`}>{cat.averageScore}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${cat.averageScore}%` }}
-                  ></div>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600">Completion</span>
-                  <span className="font-medium text-gray-900">{cat.completed}/{cat.total}</span>
-                </div>
+            )}
+          </div>
+          {/* Pie Chart View */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <PieChartIcon className="h-5 w-5 mr-2" />
+              Average Score Distribution by Category
+            </h3>
+            {performanceData.categoryPieData.length > 0 ? (
+              <div style={{ height: '300px' }}>
+                <ResponsiveContainerPie width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={performanceData.categoryPieData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {performanceData.categoryPieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <PieTooltip />
+                    <PieLegend />
+                  </PieChart>
+                </ResponsiveContainerPie>
               </div>
-            </div>
-          ))}
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <PieChartIcon className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p>No data available for pie chart</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -274,70 +659,59 @@ export default function Analysis() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4">By Difficulty</h3>
-            {performanceData.questionAccuracy
-              .filter((q) => q.difficulty)
-              .map((q) => (
-                <div key={q.difficulty} className="mb-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className={`font-medium ${getDifficultyColor(q.difficulty)} px-3 py-1 rounded-full text-sm`}>
-                      {q.difficulty}
-                    </span>
-                    <span className="text-gray-900 font-medium">
-                      {Math.round((q.correct / q.total) * 100)}%
-                    </span>
+            {performanceData.questionAccuracy.filter((q) => q.difficulty).length > 0 ? (
+              performanceData.questionAccuracy
+                .filter((q) => q.difficulty)
+                .map((q) => (
+                  <div key={q.difficulty} className="mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className={`font-medium ${getDifficultyColor(q.difficulty)} px-3 py-1 rounded-full text-sm`}>
+                        {q.difficulty}
+                      </span>
+                      <span className="text-gray-900 font-medium">
+                        {Math.round((q.correct / (q.total || 1)) * 100)}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${(q.correct / (q.total || 1)) * 100}%` }}
+                      ></div>
+                    </div>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${(q.correct / q.total) * 100}%` }}
-                    ></div>
-                  </div>
-                </div>
-              ))}
+                ))
+            ) : (
+              <div className="text-center py-4 text-gray-500">
+                <p>No difficulty data available</p>
+              </div>
+            )}
           </div>
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4">By Category</h3>
-            {performanceData.questionAccuracy
-              .filter((q) => q.category && !q.difficulty)
-              .map((q) => (
-                <div key={q.category} className="mb-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium text-gray-700">{q.category}</span>
-                    <span className="text-gray-900 font-medium">
-                      {Math.round((q.correct / q.total) * 100)}%
-                    </span>
+            {performanceData.questionAccuracy.filter((q) => q.category && !q.difficulty).length > 0 ? (
+              performanceData.questionAccuracy
+                .filter((q) => q.category && !q.difficulty)
+                .map((q) => (
+                  <div key={q.category} className="mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium text-gray-700">{q.category}</span>
+                      <span className="text-gray-900 font-medium">
+                        {Math.round((q.correct / (q.total || 1)) * 100)}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${(q.correct / (q.total || 1)) * 100}%` }}
+                      ></div>
+                    </div>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${(q.correct / q.total) * 100}%` }}
-                    ></div>
-                  </div>
-                </div>
-              ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Recommendations */}
-      <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-lg">
-        <div className="text-center">
-          <div className="flex justify-center mb-4">
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-4 rounded-full">
-              <Star className="h-8 w-8 text-white" />
-            </div>
-          </div>
-          <h3 className="text-2xl font-bold text-gray-800 mb-3">Keep Up the Great Work!</h3>
-          <p className="text-gray-600 text-lg mb-6 max-w-2xl mx-auto">
-            Your performance is strong, with an average score of {performanceData.averageScore}%. Focus on improving in Backend and Database categories to boost your overall accuracy.
-          </p>
-          <div className="flex justify-center gap-4">
-            <button className="bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 px-6 rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 transform hover:scale-105 font-semibold">
-              Start New Quiz
-            </button>
-            <button className="bg-gradient-to-r from-green-600 to-green-700 text-white py-3 px-6 rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-200 transform hover:scale-105 font-semibold">
-              Review Weak Areas
-            </button>
+                ))
+            ) : (
+              <div className="text-center py-4 text-gray-500">
+                <p>No category accuracy data available</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

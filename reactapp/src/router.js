@@ -11,6 +11,7 @@ import QuizPage from "./pages/student/QuizPage";
 import ResultPage from "./pages/student/ResultPage";
 import AssignedQuizzes from "./pages/student/AssignedQuizzes";
 import ReviewPage from "./pages/student/ReviewPage";
+import CompletedQuizzes from "./pages/student/CompletedQuizzes";
 
 import NotFound from "./pages/NotFound";
 import Home from "./pages/auth/Home";
@@ -34,6 +35,8 @@ export default function AppRouter() {
         <Route path="/result" element={<ResultPage />} />
          <Route path="/assigned-quizzes" element={<AssignedQuizzes />} />
          <Route path="/review/:attemptId" element={<ReviewPage />} />
+
+         <Route path="completed-quizzes" element={<CompletedQuizzes />} />
 
         <Route path="*" element={<NotFound />} />
       </Routes>
