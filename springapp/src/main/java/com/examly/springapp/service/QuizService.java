@@ -2,8 +2,11 @@ package com.examly.springapp.service;
 
 import com.examly.springapp.model.Quiz;
 import com.examly.springapp.repository.QuizRepository;
+import com.examly.springapp.repository.QuizRetakeRequestRepository;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -11,10 +14,12 @@ import java.util.List;
 public class QuizService {
 
     private final QuizRepository quizRepository;
+    private final QuizRetakeRequestRepository retakeRequestRepository;
     private final JdbcTemplate jdbcTemplate;
 
-    public QuizService(QuizRepository quizRepository, JdbcTemplate jdbcTemplate) {
+    public QuizService(QuizRepository quizRepository, QuizRetakeRequestRepository retakeRequestRepository, JdbcTemplate jdbcTemplate) {
         this.quizRepository = quizRepository;
+        this.retakeRequestRepository = retakeRequestRepository;
         this.jdbcTemplate = jdbcTemplate;
     }
 
@@ -26,7 +31,7 @@ public class QuizService {
 
     public Quiz updateQuiz(Long id, Quiz quizDetails) {
         Quiz quiz = quizRepository.findById(id).orElseThrow(() -> new RuntimeException("Quiz not found"));
-        quiz.setTitle(quizDetails.getTitle());
+        quiz.setTitle(quizDetails.getTitle()); // Fixed: Removed incorrect 't' reference
         quiz.setDescription(quizDetails.getDescription());
         quiz.setTimeLimit(quizDetails.getTimeLimit());
         quiz.setQuestions(quizDetails.getQuestions());
@@ -36,7 +41,13 @@ public class QuizService {
         return quizRepository.save(quiz);
     }
 
+    @Transactional
     public void deleteQuiz(Long id) {
+        if (!quizRepository.existsById(id)) {
+            throw new RuntimeException("Quiz not found with ID: " + id);
+        }
+        retakeRequestRepository.deleteByQuizId(id);
+        deleteUserQuizAssignments(id);
         quizRepository.deleteById(id);
     }
 

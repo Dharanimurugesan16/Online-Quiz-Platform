@@ -34,7 +34,7 @@ public class QuizAttempt {
     @Column(name = "answers")
     @JdbcTypeCode(SqlTypes.JSON)
     @NotNull
-    private Map<String, AnswerDetails> answers; // Map<questionId, AnswerDetails>
+    private Map<String, AnswerDetails> answers;
 
     @Column(name = "score")
     @NotNull
@@ -46,12 +46,13 @@ public class QuizAttempt {
 
     @Column(name = "time_spent")
     @NotNull
-    private Integer timeSpent; // In seconds
+    private Integer timeSpent;
 
     @Column(name = "completed_date")
     @NotNull
     private LocalDateTime completedDate;
 
+    @Builder.Default
     @Column(name = "attempts")
     private Integer attempts = 1;
 

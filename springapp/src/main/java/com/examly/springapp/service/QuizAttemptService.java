@@ -5,7 +5,9 @@ import com.examly.springapp.model.QuizAttempt;
 import com.examly.springapp.model.Question;
 import com.examly.springapp.repository.QuizAttemptRepository;
 import com.examly.springapp.repository.QuizRepository;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -16,14 +18,17 @@ public class QuizAttemptService {
 
     private final QuizAttemptRepository quizAttemptRepository;
     private final QuizRepository quizRepository;
-    private final QuizService quizService; // Add QuizService dependency
+    private final QuizService quizService;
+    private final JdbcTemplate jdbcTemplate;
 
-    public QuizAttemptService(QuizAttemptRepository quizAttemptRepository, QuizRepository quizRepository, QuizService quizService) {
+    public QuizAttemptService(QuizAttemptRepository quizAttemptRepository, QuizRepository quizRepository, QuizService quizService, JdbcTemplate jdbcTemplate) {
         this.quizAttemptRepository = quizAttemptRepository;
         this.quizRepository = quizRepository;
         this.quizService = quizService;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
+    @Transactional
     public QuizAttempt saveQuizAttempt(QuizAttempt quizAttempt) {
         // Validate quiz exists
         Quiz quiz = quizRepository.findById(quizAttempt.getQuizId())
@@ -40,14 +45,26 @@ public class QuizAttemptService {
                 if (question.getType() == Question.QuestionType.MULTIPLE_CHOICE) {
                     String[] options = question.getOptions().split(",");
                     if (!List.of(options).contains(selectedAnswer)) {
-                        throw new RuntimeException("Invalid selected answer for question ID: " + question.getId());
+                        throw new RuntimeException("Invalid selected answer '" + selectedAnswer + "' for question ID: " + question.getId() + ". Valid options: " + String.join(", ", options));
                     }
                 } else if (question.getType() == Question.QuestionType.TRUE_FALSE) {
                     if (!selectedAnswer.equals("true") && !selectedAnswer.equals("false")) {
-                        throw new RuntimeException("Invalid selected answer for true/false question ID: " + question.getId());
+                        throw new RuntimeException("Invalid selected answer '" + selectedAnswer + "' for true/false question ID: " + question.getId() + ". Expected 'true' or 'false'.");
                     }
                 }
             }
+        }
+
+        // Check if this is a retake attempt
+        boolean isRetake = false;
+        try {
+            String checkSql = "SELECT is_retake FROM user_quiz WHERE user_id = ? AND quiz_id = ?";
+            isRetake = jdbcTemplate.query(checkSql, new Object[]{quizAttempt.getUserId(), quizAttempt.getQuizId()}, rs -> {
+                return rs.next() ? rs.getBoolean("is_retake") : false;
+            });
+        } catch (Exception e) {
+            System.err.println("Error checking is_retake: " + e.getMessage());
+            // Assume not a retake if query fails
         }
 
         // Check if user has previous attempts for this quiz
@@ -55,11 +72,29 @@ public class QuizAttemptService {
                 quizAttempt.getUserId(), quizAttempt.getQuizId());
         int attemptCount = existingAttempts.size() + 1;
 
+        // Validate attempt count
+        if (attemptCount > 2) {
+            throw new RuntimeException("Maximum attempts (2) exceeded for quiz ID: " + quizAttempt.getQuizId());
+        }
+
         // Set attempt count and completed date
         quizAttempt.setAttempts(attemptCount);
         quizAttempt.setCompletedDate(LocalDateTime.now());
 
-        return quizAttemptRepository.save(quizAttempt);
+        // Save the attempt
+        QuizAttempt savedAttempt = quizAttemptRepository.save(quizAttempt);
+
+        // If this was a retake, remove the user_quiz entry
+        if (isRetake) {
+            try {
+                String deleteSql = "DELETE FROM user_quiz WHERE user_id = ? AND quiz_id = ?";
+                jdbcTemplate.update(deleteSql, quizAttempt.getUserId(), quizAttempt.getQuizId());
+            } catch (Exception e) {
+                System.err.println("Error deleting user_quiz entry: " + e.getMessage());
+            }
+        }
+
+        return savedAttempt;
     }
 
     public List<QuizAttempt> getUserQuizAttempts(String userId) {
