@@ -3,8 +3,10 @@ package com.examly.springapp.service;
 import com.examly.springapp.model.Quiz;
 import com.examly.springapp.model.QuizAttempt;
 import com.examly.springapp.model.Question;
+import com.examly.springapp.model.User;
 import com.examly.springapp.repository.QuizAttemptRepository;
 import com.examly.springapp.repository.QuizRepository;
+import com.examly.springapp.repository.UserRepository;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,14 +20,16 @@ public class QuizAttemptService {
 
     private final QuizAttemptRepository quizAttemptRepository;
     private final QuizRepository quizRepository;
+    private final UserRepository userRepository;
     private final QuizService quizService;
     private final JdbcTemplate jdbcTemplate;
 
-    public QuizAttemptService(QuizAttemptRepository quizAttemptRepository, QuizRepository quizRepository, QuizService quizService, JdbcTemplate jdbcTemplate) {
+    public QuizAttemptService(QuizAttemptRepository quizAttemptRepository, QuizRepository quizRepository, QuizService quizService, JdbcTemplate jdbcTemplate,UserRepository userRepository) {
         this.quizAttemptRepository = quizAttemptRepository;
         this.quizRepository = quizRepository;
         this.quizService = quizService;
         this.jdbcTemplate = jdbcTemplate;
+        this.userRepository = userRepository;
     }
 
     @Transactional
@@ -120,5 +124,19 @@ public class QuizAttemptService {
             throw new RuntimeException("Quiz no longer exists for attempt ID: " + attemptId);
         }
         return attempt;
+    }
+    public List<QuizAttempt> getQuizAttemptsByQuizId(Long quizId) {
+        return quizAttemptRepository.findByQuizId(quizId);
+    }
+
+    public String getUsernameByUserId(String userId) {
+        try {
+            Long id = Long.parseLong(userId); // Convert String to Long
+            return userRepository.findById(id)
+                    .map(User::getUsername)
+                    .orElse("Unknown User");
+        } catch (NumberFormatException e) {
+            return "Unknown User"; // Handle invalid String-to-Long conversion
+        }
     }
 }

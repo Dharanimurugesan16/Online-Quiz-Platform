@@ -121,4 +121,47 @@ public class QuizAttemptController {
             return ResponseEntity.status(404).body(Map.of("error", e.getMessage()));
         }
     }
+    @GetMapping("/quiz/{quizId}")
+    public ResponseEntity<List<Map<String, Object>>> getQuizAttemptsByQuizId(@PathVariable Long quizId) {
+        try {
+            System.out.println("Fetching attempts for quizId: " + quizId);
+            List<QuizAttempt> attempts = quizAttemptService.getQuizAttemptsByQuizId(quizId);
+            System.out.println("Found attempts: " + attempts.size());
+
+            List<Map<String, Object>> response = attempts.stream().map(attempt -> {
+                System.out.println("Processing attemptId: " + attempt.getAttemptId() + ", quizId: " + attempt.getQuizId());
+                Map<String, Object> attemptData = new HashMap<>();
+                attemptData.put("attemptId", attempt.getAttemptId());
+                attemptData.put("quizId", attempt.getQuizId());
+                attemptData.put("username", quizAttemptService.getUsernameByUserId(attempt.getUserId())); // Fetch username
+                attemptData.put("answers", attempt.getAnswers());
+                attemptData.put("score", attempt.getScore());
+                attemptData.put("totalQuestions", attempt.getTotalQuestions());
+                attemptData.put("percentage", Math.round((double) attempt.getScore() / attempt.getTotalQuestions() * 100));
+                attemptData.put("timeSpent", attempt.getTimeSpent());
+                attemptData.put("completedDate", attempt.getCompletedDate().toString());
+                attemptData.put("attempts", attempt.getAttempts());
+                try {
+                    Quiz quiz = quizService.getQuizById(attempt.getQuizId(), true); // Bypass deadline
+                    System.out.println("Quiz found: " + quiz.getTitle());
+                    attemptData.put("quizTitle", quiz.getTitle());
+                    attemptData.put("quizDescription", quiz.getDescription());
+                    attemptData.put("difficulty", quiz.getDifficulty().toString());
+                    attemptData.put("category", quiz.getCategory() != null ? quiz.getCategory() : "Unknown");
+                } catch (RuntimeException e) {
+                    System.out.println("Quiz not found for quizId: " + attempt.getQuizId() + ", error: " + e.getMessage());
+                    attemptData.put("quizTitle", "Quiz Unavailable");
+                    attemptData.put("quizDescription", "This quiz is no longer available");
+                    attemptData.put("difficulty", "UNKNOWN");
+                    attemptData.put("category", "Unknown");
+                }
+                return attemptData;
+            }).collect(Collectors.toList());
+            System.out.println("Returning response with " + response.size() + " attempts");
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            System.err.println("Error fetching attempts for quizId: " + quizId + ", error: " + e.getMessage());
+            return ResponseEntity.status(404).body(List.of(Map.of("error", "No attempts found for quiz ID: " + quizId)));
+        }
+    }
 }
