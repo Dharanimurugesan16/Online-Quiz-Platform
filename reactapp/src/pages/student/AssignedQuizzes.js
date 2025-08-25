@@ -38,13 +38,13 @@ export default function AssignedQuizzes() {
       setIsLoading(true);
       try {
         const [attemptsResponse, retakeResponse, quizzesResponse] = await Promise.all([
-          axios.get(`http://localhost:8080/api/quiz-attempt/${userId}`, {
+          axios.get(`https://quiz-backend-1-jcjh.onrender.com/api/quiz-attempt/${userId}`, {
             headers: { "Content-Type": "application/json" },
           }),
-          axios.get(`http://localhost:8080/api/quiz-retake/requests`, {
+          axios.get(`https://quiz-backend-1-jcjh.onrender.com/api/quiz-retake/requests`, {
             headers: { "Content-Type": "application/json" },
           }),
-          axios.get(`http://localhost:8080/api/users/${userId}/quizzes`, {
+          axios.get(`https://quiz-backend-1-jcjh.onrender.com/api/users/${userId}/quizzes`, {
             headers: { "Content-Type": "application/json" },
           }),
         ]);
@@ -100,7 +100,7 @@ export default function AssignedQuizzes() {
 
   const startQuiz = async (quizId) => {
     try {
-      const response = await axios.get(`http://localhost:8080/api/quiz/${quizId}`);
+      const response = await axios.get(`https://quiz-backend-1-jcjh.onrender.com/api/quiz/${quizId}`);
       console.log("Fetched quiz for start:", response.data);
       if (response.status === 200) {
         const quiz = response.data;

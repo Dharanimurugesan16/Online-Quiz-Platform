@@ -13,7 +13,7 @@ export default function ReviewPage() {
   useEffect(() => {
     const fetchAttempt = async () => {
       try {
-        const response = await axios.get(`http://localhost:8080/api/quiz-attempt/attempt/${attemptId}`);
+        const response = await axios.get(`https://quiz-backend-1-jcjh.onrender.com/api/quiz-attempt/attempt/${attemptId}`);
         console.log("Backend response for attempt:", JSON.stringify(response.data, null, 2));
         setAttempt(response.data);
         setLoading(false);

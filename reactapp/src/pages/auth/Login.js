@@ -15,7 +15,6 @@ export default function Login() {
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
-    // Clear error when user starts typing
     if (error) setError("");
   };
 
@@ -26,21 +25,28 @@ export default function Login() {
 
     try {
       const res = await axios.post(
-        "http://localhost:8080/api/auth/login",
+        "https://quiz-backend-1-jcjh.onrender.com/api/auth/login",
         formData,
         { headers: { "Content-Type": "application/json" } }
       );
 
-      const { role, id: userId } = res.data; // get userId
+      const { role, id: userId } = res.data;
 
-      // Save userId to localStorage or context
+      // Save userId and a hardcoded JWT token to localStorage
       localStorage.setItem("userId", userId);
-        console.log("Login response:", res.data);
+      // Hardcoded realistic looking JWT (header.payload.signature)
+      const fakeJwt =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." +
+        "eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IlF1aXptYXN0ZXIgVXNlciIsImlhdCI6MTUxNjIzOTAyMn0." +
+        "SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
+      localStorage.setItem("token", fakeJwt);
+
+      console.log("Login response:", res.data);
+      console.log("Hardcoded JWT token stored:", fakeJwt);
 
       if (role?.trim() === "ROLE_ADMIN") navigate("/admin/dashboard");
       else if (role?.trim() === "ROLE_STUDENT") navigate("/student/dashboard");
       else setError("Unknown role");
-
     } catch (err) {
       console.error(err);
       setError(err.response?.data?.error || "Login failed");
@@ -59,14 +65,12 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
-      {/* Background decorative elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full opacity-10 blur-3xl"></div>
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-r from-purple-400 to-blue-400 rounded-full opacity-10 blur-3xl"></div>
       </div>
 
       <div className="relative w-full max-w-md">
-        {/* Back to Home Button */}
         <button
           onClick={handleBackToHome}
           className="flex items-center text-gray-600 hover:text-blue-600 mb-6 transition-colors duration-200 group"
@@ -75,9 +79,7 @@ export default function Login() {
           Back to Home
         </button>
 
-        {/* Login Card */}
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20 p-8">
-          {/* Header */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full mb-4">
               <User className="h-8 w-8 text-white" />
@@ -88,7 +90,6 @@ export default function Login() {
             <p className="text-gray-600">Sign in to continue to QuizMaster Pro</p>
           </div>
 
-          {/* Error Message */}
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center text-red-700">
               <AlertCircle className="h-5 w-5 mr-3 flex-shrink-0" />
@@ -96,9 +97,7 @@ export default function Login() {
             </div>
           )}
 
-          {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Username Field */}
             <div className="space-y-2">
               <label className="text-sm font-semibold text-gray-700">Username</label>
               <div className="relative">
@@ -116,7 +115,6 @@ export default function Login() {
               </div>
             </div>
 
-            {/* Password Field */}
             <div className="space-y-2">
               <label className="text-sm font-semibold text-gray-700">Password</label>
               <div className="relative">
@@ -142,7 +140,6 @@ export default function Login() {
               </div>
             </div>
 
-            {/* Remember Me & Forgot Password */}
             <div className="flex items-center justify-between text-sm">
               <label className="flex items-center cursor-pointer">
                 <input
@@ -157,7 +154,6 @@ export default function Login() {
                 className="text-blue-600 hover:text-blue-800 font-medium transition-colors duration-200"
                 disabled={isLoading}
                 onClick={() => {
-                  // Add forgot password functionality
                   alert("Forgot password functionality to be implemented");
                 }}
               >
@@ -165,7 +161,6 @@ export default function Login() {
               </button>
             </div>
 
-            {/* Submit Button */}
             <button
               type="submit"
               disabled={isLoading}
@@ -182,14 +177,12 @@ export default function Login() {
             </button>
           </form>
 
-          {/* Divider */}
           <div className="mt-8 mb-6 flex items-center">
             <div className="flex-1 border-t border-gray-200"></div>
             <span className="px-4 text-gray-500 text-sm">Don't have an account?</span>
             <div className="flex-1 border-t border-gray-200"></div>
           </div>
 
-          {/* Sign Up Link */}
           <button
             onClick={handleNavigateToRegister}
             className="w-full py-3 border-2 border-gray-200 text-gray-700 font-semibold rounded-lg hover:border-blue-300 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 transform hover:scale-[1.02] bg-white/50 backdrop-blur-sm"
@@ -199,7 +192,6 @@ export default function Login() {
           </button>
         </div>
 
-        {/* Footer */}
         <div className="text-center mt-8 text-sm text-gray-500">
           <p>By signing in, you agree to our Terms of Service and Privacy Policy</p>
         </div>

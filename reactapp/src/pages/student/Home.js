@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 
 // Configure the API base URL
-const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
+const API_BASE_URL = process.env.REACT_APP_API_URL || "https://quiz-backend-1-jcjh.onrender.com";
 
 export default function Home() {
   const [stats, setStats] = useState({

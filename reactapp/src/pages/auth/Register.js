@@ -30,7 +30,7 @@ export default function Register() {
 
     try {
       const res = await axios.post(
-        "http://localhost:8080/api/auth/register",
+        "https://quiz-backend-1-jcjh.onrender.com/api/auth/register",
         formData,
         { headers: { "Content-Type": "application/json" } }
       );

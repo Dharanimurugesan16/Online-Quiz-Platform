@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Menu, X, Home, FileText, HelpCircle, Settings, LogOut, GraduationCap, User, ChevronRight, Repeat, BarChart2 } from "lucide-react";
+import { Menu, X, Home, FileText, HelpCircle, Settings, LogOut, GraduationCap, User, ChevronRight, Repeat, BarChart2, ChevronUp, ChevronDown } from "lucide-react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { Bar } from "react-chartjs-2";
@@ -41,11 +41,25 @@ export default function AdminPortal() {
   const [isEditingQuestion, setIsEditingQuestion] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [selectedQuiz, setSelectedQuiz] = useState(null);
-  const [viewMode, setViewMode] = useState("table"); // Toggle for table/chart view
+  const [viewMode, setViewMode] = useState("table");
+
+  // Pagination and Sorting States
+  const [quizPage, setQuizPage] = useState(1);
+  const [questionPage, setQuestionPage] = useState(1);
+  const [retakePage, setRetakePage] = useState(1);
+  const [scoresPage, setScoresPage] = useState(1);
+  const itemsPerPage = 5;
+  const [sortConfig, setSortConfig] = useState({
+    quizzes: { key: null, direction: 'asc' },
+    questions: { key: null, direction: 'asc' },
+    retakeRequests: { key: null, direction: 'asc' },
+    quizAttempts: { key: null, direction: 'asc' },
+  });
+
   const navigate = useNavigate();
 
   const axiosInstance = axios.create({
-    baseURL: "http://localhost:8080/api",
+    baseURL: "https://quiz-backend-1-jcjh.onrender.com/api",
     withCredentials: true,
   });
 
@@ -55,7 +69,6 @@ export default function AdminPortal() {
     { name: "Questions", id: "questions", icon: HelpCircle, description: "Question bank" },
     { name: "Retake Requests", id: "retake-requests", icon: Repeat, description: "Manage retake requests" },
     { name: "Student Scores", id: "student-scores", icon: BarChart2, description: "View student scores" },
-
   ];
 
   const fetchData = async () => {
@@ -116,6 +129,80 @@ export default function AdminPortal() {
     }
   }, [activeTab, selectedQuizForScores]);
 
+  // Sorting Function
+  const handleSort = (section, key) => {
+    setSortConfig((prev) => {
+      const newDirection =
+        prev[section].key === key && prev[section].direction === 'asc' ? 'desc' : 'asc';
+      return {
+        ...prev,
+        [section]: { key, direction: newDirection },
+      };
+    });
+  };
+
+  const sortData = (data, section) => {
+    const { key, direction } = sortConfig[section];
+    if (!key) return data;
+
+    const sortedData = [...data];
+    sortedData.sort((a, b) => {
+      let valueA = a[key];
+      let valueB = b[key];
+
+      // Handle date sorting for retake requests
+      if (section === 'retakeRequests' && key === 'requestDate') {
+        valueA = new Date(a[key]).getTime();
+        valueB = new Date(b[key]).getTime();
+      }
+
+      // Handle numeric sorting for quizAttempts (score, totalQuestions, timeSpent, attempts)
+      if (section === 'quizAttempts' && ['score', 'totalQuestions', 'timeSpent', 'attempts'].includes(key)) {
+        valueA = Number(a[key]);
+        valueB = Number(b[key]);
+      }
+
+      if (valueA < valueB) return direction === 'asc' ? -1 : 1;
+      if (valueA > valueB) return direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return sortedData;
+  };
+
+  // Pagination Functions
+  const getPaginatedData = (data, page) => {
+    const startIndex = (page - 1) * itemsPerPage;
+    return data.slice(startIndex, startIndex + itemsPerPage);
+  };
+
+  const getPageCount = (data) => Math.ceil(data.length / itemsPerPage);
+
+  const renderPagination = (page, setPage, totalItems) => {
+    const pageCount = getPageCount(totalItems);
+    return (
+      <div className="flex justify-center mt-4 space-x-2">
+        <button
+          onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+          disabled={page === 1}
+          className="px-4 py-2 bg-gray-200 rounded-xl disabled:opacity-50 hover:bg-gray-300 transition-all duration-200"
+        >
+          Previous
+        </button>
+        <span className="px-4 py-2 text-gray-700 font-medium">
+          Page {page} of {pageCount}
+        </span>
+        <button
+          onClick={() => setPage((prev) => Math.min(prev + 1, pageCount))}
+          disabled={page === pageCount}
+          className="px-4 py-2 bg-gray-200 rounded-xl disabled:opacity-50 hover:bg-gray-300 transition-all duration-200"
+        >
+          Next
+        </button>
+      </div>
+    );
+  };
+
   const handleQuizChange = (e) =>
     setQuizForm({ ...quizForm, [e.target.name]: e.target.value });
 
@@ -143,6 +230,7 @@ export default function AdminPortal() {
       setQuizForm({ id: null, title: "", description: "", timeLimit: 0, difficulty: "EASY", deadline: "", questions: [] });
       setIsEditingQuiz(false);
       fetchData();
+      setQuizPage(1); // Reset to first page after submission
     } catch {
       setError("Failed to save quiz");
     }
@@ -175,6 +263,7 @@ export default function AdminPortal() {
         });
         await fetchData();
         console.log("Quiz deleted and all retake requests removed for quiz ID:", id);
+        setQuizPage(1); // Reset to first page after deletion
       } catch (err) {
         console.error("Delete quiz error:", err);
         setError(`Failed to delete quiz or retake requests: ${err.response?.data?.error || err.message}`);
@@ -210,6 +299,7 @@ export default function AdminPortal() {
       });
       setIsEditingQuestion(false);
       fetchData();
+      setQuestionPage(1); // Reset to first page after submission
     } catch (err) {
       console.error("Question submit error:", err);
       setError("Failed to save question");
@@ -226,6 +316,7 @@ export default function AdminPortal() {
       try {
         await axiosInstance.delete(`/question/delete/${id}`);
         fetchData();
+        setQuestionPage(1); // Reset to first page after deletion
       } catch {
         setError("Failed to delete question");
       }
@@ -269,6 +360,7 @@ export default function AdminPortal() {
       alert(`Retake request ${action.toLowerCase()} successfully`);
 
       await fetchData();
+      setRetakePage(1); // Reset to first page after action
     } catch (err) {
       console.error(`Retake ${action} error:`, err);
       setError(`Failed to ${action.toLowerCase()} retake request: ${err.message}`);
@@ -474,7 +566,7 @@ export default function AdminPortal() {
           {activeTab === "quizzes" && (
             <div className="space-y-6">
               <QuizManagement
-                quizzes={quizzes}
+                quizzes={getPaginatedData(sortData(quizzes, 'quizzes'), quizPage)}
                 questions={questions}
                 quizForm={quizForm}
                 setQuizForm={setQuizForm}
@@ -485,6 +577,7 @@ export default function AdminPortal() {
                 handleQuizEdit={handleQuizEdit}
                 handleQuizDelete={handleQuizDelete}
               />
+              {renderPagination(quizPage, setQuizPage, quizzes)}
               <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-8 border border-blue-100">
                 <h2 className="text-xl font-semibold text-gray-800 mb-6">Assign Quiz to Student</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
@@ -527,7 +620,7 @@ export default function AdminPortal() {
           {activeTab === "questions" && (
             <div className="space-y-6">
               <QuestionBank
-                questions={questions}
+                questions={getPaginatedData(sortData(questions, 'questions'), questionPage)}
                 questionForm={questionForm}
                 setQuestionForm={setQuestionForm}
                 isEditingQuestion={isEditingQuestion}
@@ -536,6 +629,7 @@ export default function AdminPortal() {
                 handleQuestionEdit={handleQuestionEdit}
                 handleQuestionDelete={handleQuestionDelete}
               />
+              {renderPagination(questionPage, setQuestionPage, questions)}
             </div>
           )}
           {activeTab === "retake-requests" && (
@@ -543,56 +637,71 @@ export default function AdminPortal() {
               <h1 className="text-3xl font-bold text-gray-800 mb-6">Retake Requests</h1>
               <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
                 <div className="space-y-4">
-                  {retakeRequests.length > 0 ? (
-                    retakeRequests.map((request) => (
-                      <div
-                        key={request.id}
-                        className="p-4 bg-gray-50 rounded-xl flex items-center justify-between hover:bg-gray-100 transition-colors duration-200"
-                      >
-                        <div className="flex items-center space-x-4">
-                          <div className="bg-blue-100 p-2 rounded-full">
-                            <Repeat className="h-5 w-5 text-blue-600" />
-                          </div>
-                          <div>
-                            <h3 className="font-semibold text-gray-900">
-                              {request.studentUsername} requested to retake "{request.quizTitle}"
-                            </h3>
-                            <p className="text-sm text-gray-600">
-                              Requested on {new Date(request.requestDate).toLocaleDateString("en-US", {
-                                year: "numeric",
-                                month: "short",
-                                day: "numeric",
-                              })}
-                            </p>
-                          </div>
-                        </div>
-                        {request.status === "PENDING" && (
-                          <div className="flex gap-3">
-                            <button
-                              onClick={() => handleRetakeAction(request.id, "approve")}
-                              className="bg-green-600 text-white py-2 px-4 rounded-xl hover:bg-green-700 transition-all duration-200"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => handleRetakeAction(request.id, "reject")}
-                              className="bg-red-600 text-white py-2 px-4 rounded-xl hover:bg-red-700 transition-all duration-200"
-                            >
-                              Reject
-                            </button>
-                          </div>
-                        )}
-                        {request.status !== "PENDING" && (
-                          <span
-                            className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                              request.status === "APPROVED" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-                            }`}
-                          >
-                            {request.status}
-                          </span>
-                        )}
-                      </div>
-                    ))
+                  {getPaginatedData(sortData(retakeRequests, 'retakeRequests'), retakePage).length > 0 ? (
+                    <>
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-gradient-to-r from-blue-50 to-purple-50 text-gray-800">
+                            <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wide cursor-pointer" onClick={() => handleSort('retakeRequests', 'studentUsername')}>
+                              Student {sortConfig.retakeRequests.key === 'studentUsername' && (sortConfig.retakeRequests.direction === 'asc' ? <ChevronUp className="inline h-4 w-4" /> : <ChevronDown className="inline h-4 w-4" />)}
+                            </th>
+                            <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wide cursor-pointer" onClick={() => handleSort('retakeRequests', 'quizTitle')}>
+                              Quiz {sortConfig.retakeRequests.key === 'quizTitle' && (sortConfig.retakeRequests.direction === 'asc' ? <ChevronUp className="inline h-4 w-4" /> : <ChevronDown className="inline h-4 w-4" />)}
+                            </th>
+                            <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wide cursor-pointer" onClick={() => handleSort('retakeRequests', 'requestDate')}>
+                              Requested On {sortConfig.retakeRequests.key === 'requestDate' && (sortConfig.retakeRequests.direction === 'asc' ? <ChevronUp className="inline h-4 w-4" /> : <ChevronDown className="inline h-4 w-4" />)}
+                            </th>
+                            <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wide cursor-pointer" onClick={() => handleSort('retakeRequests', 'status')}>
+                              Status {sortConfig.retakeRequests.key === 'status' && (sortConfig.retakeRequests.direction === 'asc' ? <ChevronUp className="inline h-4 w-4" /> : <ChevronDown className="inline h-4 w-4" />)}
+                            </th>
+                            <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wide">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {getPaginatedData(sortData(retakeRequests, 'retakeRequests'), retakePage).map((request) => (
+                            <tr key={request.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-200">
+                              <td className="px-6 py-4 text-sm text-gray-600 font-medium">{request.studentUsername}</td>
+                              <td className="px-6 py-4 text-sm text-gray-600">{request.quizTitle}</td>
+                              <td className="px-6 py-4 text-sm text-gray-600">
+                                {new Date(request.requestDate).toLocaleDateString("en-US", {
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "numeric",
+                                })}
+                              </td>
+                              <td className="px-6 py-4 text-sm">
+                                <span
+                                  className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                                    request.status === "APPROVED" ? "bg-green-100 text-green-700" : request.status === "PENDING" ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-700"
+                                  }`}
+                                >
+                                  {request.status}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 text-sm">
+                                {request.status === "PENDING" && (
+                                  <div className="flex gap-3">
+                                    <button
+                                      onClick={() => handleRetakeAction(request.id, "approve")}
+                                      className="bg-green-600 text-white py-2 px-4 rounded-xl hover:bg-green-700 transition-all duration-200"
+                                    >
+                                      Approve
+                                    </button>
+                                    <button
+                                      onClick={() => handleRetakeAction(request.id, "reject")}
+                                      className="bg-red-600 text-white py-2 px-4 rounded-xl hover:bg-red-700 transition-all duration-200"
+                                    >
+                                      Reject
+                                    </button>
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {renderPagination(retakePage, setRetakePage, retakeRequests)}
+                    </>
                   ) : (
                     <div className="text-center py-8 text-gray-500">
                       <Repeat className="h-12 w-12 mx-auto mb-2 opacity-50" />
@@ -637,7 +746,10 @@ export default function AdminPortal() {
                 </div>
                 <select
                   value={selectedQuizForScores || ""}
-                  onChange={(e) => setSelectedQuizForScores(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedQuizForScores(e.target.value);
+                    setScoresPage(1); // Reset to first page when quiz changes
+                  }}
                   className="w-full max-w-md border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white shadow-sm"
                 >
                   <option value="">Choose a quiz...</option>
@@ -652,57 +764,74 @@ export default function AdminPortal() {
                     Performance for {quizzes.find((q) => q.id === Number(selectedQuizForScores))?.title}
                   </h2>
                   {viewMode === "table" ? (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse">
-                        <thead>
-                          <tr className="bg-gradient-to-r from-blue-50 to-purple-50 text-gray-800">
-                            <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wide">Student</th>
-                            <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wide">Score</th>
-                            <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wide">Total</th>
-                            <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wide">Percentage</th>
-                            <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wide">Time Spent</th>
-                            <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wide">Attempt</th>
-                            <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wide">Completed On</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {quizAttempts.map((attempt) => (
-                            <tr
-                              key={attempt.attemptId}
-                              className="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-200"
-                            >
-                              <td className="px-6 py-4 text-sm text-gray-600 font-medium">{attempt.username}</td>
-                              <td className="px-6 py-4 text-sm text-gray-600">{attempt.score}</td>
-                              <td className="px-6 py-4 text-sm text-gray-600">{attempt.totalQuestions}</td>
-                              <td className="px-6 py-4 text-sm text-gray-600">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-16 bg-gray-200 rounded-full h-2">
-                                    <div
-                                      className="bg-blue-500 h-2 rounded-full"
-                                      style={{ width: `${Math.round((attempt.score / attempt.totalQuestions) * 100)}%` }}
-                                    ></div>
-                                  </div>
-                                  {Math.round((attempt.score / attempt.totalQuestions) * 100)}%
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 text-sm text-gray-600">
-                                {Math.floor(attempt.timeSpent / 60)}:{(attempt.timeSpent % 60).toString().padStart(2, "0")}
-                              </td>
-                              <td className="px-6 py-4 text-sm text-gray-600">{attempt.attempts}</td>
-                              <td className="px-6 py-4 text-sm text-gray-600">
-                                {new Date(attempt.completedDate).toLocaleDateString("en-US", {
-                                  year: "numeric",
-                                  month: "short",
-                                  day: "numeric",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
-                              </td>
+                    <>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                          <thead>
+                            <tr className="bg-gradient-to-r from-blue-50 to-purple-50 text-gray-800">
+                              <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wide cursor-pointer" onClick={() => handleSort('quizAttempts', 'username')}>
+                                Student {sortConfig.quizAttempts.key === 'username' && (sortConfig.quizAttempts.direction === 'asc' ? <ChevronUp className="inline h-4 w-4" /> : <ChevronDown className="inline h-4 w-4" />)}
+                              </th>
+                              <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wide cursor-pointer" onClick={() => handleSort('quizAttempts', 'score')}>
+                                Score {sortConfig.quizAttempts.key === 'score' && (sortConfig.quizAttempts.direction === 'asc' ? <ChevronUp className="inline h-4 w-4" /> : <ChevronDown className="inline h-4 w-4" />)}
+                              </th>
+                              <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wide cursor-pointer" onClick={() => handleSort('quizAttempts', 'totalQuestions')}>
+                                Total {sortConfig.quizAttempts.key === 'totalQuestions' && (sortConfig.quizAttempts.direction === 'asc' ? <ChevronUp className="inline h-4 w-4" /> : <ChevronDown className="inline h-4 w-4" />)}
+                              </th>
+                              <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wide cursor-pointer" onClick={() => handleSort('quizAttempts', 'score')}>
+                                Percentage {sortConfig.quizAttempts.key === 'score' && (sortConfig.quizAttempts.direction === 'asc' ? <ChevronUp className="inline h-4 w-4" /> : <ChevronDown className="inline h-4 w-4" />)}
+                              </th>
+                              <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wide cursor-pointer" onClick={() => handleSort('quizAttempts', 'timeSpent')}>
+                                Time Spent {sortConfig.quizAttempts.key === 'timeSpent' && (sortConfig.quizAttempts.direction === 'asc' ? <ChevronUp className="inline h-4 w-4" /> : <ChevronDown className="inline h-4 w-4" />)}
+                              </th>
+                              <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wide cursor-pointer" onClick={() => handleSort('quizAttempts', 'attempts')}>
+                                Attempt {sortConfig.quizAttempts.key === 'attempts' && (sortConfig.quizAttempts.direction === 'asc' ? <ChevronUp className="inline h-4 w-4" /> : <ChevronDown className="inline h-4 w-4" />)}
+                              </th>
+                              <th className="px-6 py-4 text-sm font-semibold uppercase tracking-wide cursor-pointer" onClick={() => handleSort('quizAttempts', 'completedDate')}>
+                                Completed On {sortConfig.quizAttempts.key === 'completedDate' && (sortConfig.quizAttempts.direction === 'asc' ? <ChevronUp className="inline h-4 w-4" /> : <ChevronDown className="inline h-4 w-4" />)}
+                              </th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                          </thead>
+                          <tbody>
+                            {getPaginatedData(sortData(quizAttempts, 'quizAttempts'), scoresPage).map((attempt) => (
+                              <tr
+                                key={attempt.attemptId}
+                                className="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-200"
+                              >
+                                <td className="px-6 py-4 text-sm text-gray-600 font-medium">{attempt.username}</td>
+                                <td className="px-6 py-4 text-sm text-gray-600">{attempt.score}</td>
+                                <td className="px-6 py-4 text-sm text-gray-600">{attempt.totalQuestions}</td>
+                                <td className="px-6 py-4 text-sm text-gray-600">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-16 bg-gray-200 rounded-full h-2">
+                                      <div
+                                        className="bg-blue-500 h-2 rounded-full"
+                                        style={{ width: `${Math.round((attempt.score / attempt.totalQuestions) * 100)}%` }}
+                                      ></div>
+                                    </div>
+                                    {Math.round((attempt.score / attempt.totalQuestions) * 100)}%
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 text-sm text-gray-600">
+                                  {Math.floor(attempt.timeSpent / 60)}:{(attempt.timeSpent % 60).toString().padStart(2, "0")}
+                                </td>
+                                <td className="px-6 py-4 text-sm text-gray-600">{attempt.attempts}</td>
+                                <td className="px-6 py-4 text-sm text-gray-600">
+                                  {new Date(attempt.completedDate).toLocaleDateString("en-US", {
+                                    year: "numeric",
+                                    month: "short",
+                                    day: "numeric",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      {renderPagination(scoresPage, setScoresPage, quizAttempts)}
+                    </>
                   ) : (
                     <div className="h-96">
                       <Bar data={chartData} options={chartOptions} />
@@ -722,7 +851,6 @@ export default function AdminPortal() {
               )}
             </div>
           )}
-
         </div>
       </div>
     </div>

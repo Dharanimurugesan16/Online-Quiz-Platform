@@ -18,7 +18,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer as ResponsiveContainerPie, Too
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82ca9d'];
 
 // Configure the API base URL
-const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
+const API_BASE_URL = process.env.REACT_APP_API_URL || "https://quiz-backend-1-jcjh.onrender.com";
 
 // Helper function to log unknown values
 const logUnknownValues = (attempts) => {

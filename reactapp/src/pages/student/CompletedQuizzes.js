@@ -48,7 +48,7 @@ export default function CompletedQuizzes() {
       }
 
       try {
-        const response = await axios.get(`http://localhost:8080/api/quiz-attempt/${userId}`);
+        const response = await axios.get(`https://quiz-backend-1-jcjh.onrender.com/api/quiz-attempt/${userId}`);
         console.log("API Response:", response.data); // Debug
         setCompletedQuizzes(response.data);
         setLoading(false);
@@ -132,7 +132,7 @@ export default function CompletedQuizzes() {
     }
 
     try {
-      await axios.post(`http://localhost:8080/api/quiz-retake/request`, {
+      await axios.post(`https://quiz-backend-1-jcjh.onrender.com/api/quiz-retake/request`, {
         userId,
         quizId,
       });

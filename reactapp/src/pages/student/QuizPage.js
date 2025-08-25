@@ -35,9 +35,9 @@ export default function QuizPage() {
       try {
         // Fetch quiz details, user attempts, and retake requests
         const [quizResponse, attemptsResponse, retakeResponse] = await Promise.all([
-          axios.get(`http://localhost:8080/api/quiz/${quizId}`),
-          axios.get(`http://localhost:8080/api/quiz-attempt/${userId}`),
-          axios.get(`http://localhost:8080/api/quiz-retake/requests`),
+          axios.get(`https://quiz-backend-1-jcjh.onrender.com/api/quiz/${quizId}`),
+          axios.get(`https://quiz-backend-1-jcjh.onrender.com/api/quiz-attempt/${userId}`),
+          axios.get(`https://quiz-backend-1-jcjh.onrender.com/api/quiz-retake/requests`),
         ]);
 
         // Process quiz data
@@ -188,7 +188,7 @@ export default function QuizPage() {
     console.log("Submitting attemptData:", JSON.stringify(attemptData, null, 2));
 
     try {
-      const response = await axios.post("http://localhost:8080/api/quiz-attempt", attemptData);
+      const response = await axios.post("https://quiz-backend-1-jcjh.onrender.com/api/quiz-attempt", attemptData);
       console.log("Quiz attempt saved:", response.data);
       setTimeRemaining(0); // Stop the timer
       setIsCompleted(true);
@@ -209,7 +209,7 @@ export default function QuizPage() {
 
     setIsSubmittingRetake(true);
     try {
-      const response = await axios.post("http://localhost:8080/api/quiz-retake/request", {
+      const response = await axios.post("https://quiz-backend-1-jcjh.onrender.com/api/quiz-retake/request", {
         userId: parseInt(userId),
         quizId: parseInt(quizId),
       });
